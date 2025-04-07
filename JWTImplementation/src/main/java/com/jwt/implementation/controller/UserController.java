@@ -13,6 +13,7 @@ import com.jwt.implementation.response.LoginResponse;
 import com.jwt.implementation.service.JWTService;
 import com.jwt.implementation.service.UserService;
 
+
 @RestController
 public class UserController {
 
@@ -24,8 +25,8 @@ public class UserController {
 
     @PostMapping("/auth/signup")
     public ResponseEntity<User> signupUser(@RequestBody User user) {
-        User savedUser = userService.signup(user);
-        return ResponseEntity.ok(savedUser);
+        User user2 = userService.signup(user);
+        return ResponseEntity.ok(user2);
     }
 
     @PostMapping("/auth/login")
@@ -45,4 +46,6 @@ public class UserController {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
     }
+    
+    
 }

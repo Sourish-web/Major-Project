@@ -47,9 +47,9 @@ public class JWTAuthenticationEntryPoint extends OncePerRequestFilter {
 
             final String userEmail = jwtService.extractUsername(jwtToken); // ✅ fixed spelling
 
-            Authentication existingAuth = SecurityContextHolder.getContext().getAuthentication();
+            Authentication  authentication= SecurityContextHolder.getContext().getAuthentication();
 
-            if (userEmail != null && existingAuth == null) {
+            if (userEmail != null &&  authentication == null) {
                 UserDetails userDetails = userDetailService.loadUserByUsername(userEmail);
 
                 if (jwtService.isTokenValid(jwtToken, userDetails)) { // ✅ fixed spelling

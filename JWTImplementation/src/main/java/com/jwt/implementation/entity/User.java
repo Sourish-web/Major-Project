@@ -19,7 +19,7 @@ public class User implements UserDetails {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	
 	private Integer id;
-	private String Name;
+	private String name;
 	private String email;
 	private String password;
 	@Override
@@ -64,7 +64,7 @@ public class User implements UserDetails {
 	public User(Integer id, String name, String email, String password) {
 		super();
 		this.id = id;
-		this.Name = name;
+		this.name = name;
 		this.email = email;
 		this.password = password;
 	}
@@ -75,10 +75,10 @@ public class User implements UserDetails {
 		this.id = id;
 	}
 	public String getName() {
-		return Name;
+		return name;
 	}
 	public void setName(String name) {
-		this.Name = name;
+		this.name = name;
 	}
 	public String getEmail() {
 		return email;
