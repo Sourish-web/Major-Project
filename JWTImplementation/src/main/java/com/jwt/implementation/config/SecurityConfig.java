@@ -1,5 +1,7 @@
 package com.jwt.implementation.config;
 
+
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,9 +30,11 @@ public class SecurityConfig {
 	public SecurityFilterChain  securityFilterChain (HttpSecurity httpSecurity ) throws Exception {
 		
 		return httpSecurity
+				
 				.csrf(csrf->csrf.disable())
 				.authorizeHttpRequests(auth->auth
 						.requestMatchers("/auth/**").permitAll()
+						.requestMatchers("/getUsers").permitAll()
 						.anyRequest().authenticated()
 						)
 				.sessionManagement(session -> session

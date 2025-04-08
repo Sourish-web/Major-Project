@@ -24,12 +24,14 @@ public class UserController {
     private JWTService jwtService;
 
     @PostMapping("/auth/signup")
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<User> signupUser(@RequestBody User user) {
         User user2 = userService.signup(user);
         return ResponseEntity.ok(user2);
     }
 
     @PostMapping("/auth/login")
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<LoginResponse> loginUser(@RequestBody LoginDto loginDto) {
         User user = userService.loginUser(loginDto);
         String jwtToken = jwtService.generateToken(new HashMap<>(), user);
@@ -42,6 +44,7 @@ public class UserController {
     }
 
     @GetMapping("/getUsers")
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<List<User>> getAllUser() {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
