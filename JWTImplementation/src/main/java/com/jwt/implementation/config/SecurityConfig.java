@@ -35,6 +35,9 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth->auth
 						.requestMatchers("/auth/**").permitAll()
 						.requestMatchers("/getUsers").permitAll()
+						.requestMatchers("/addTransaction").permitAll()
+						.requestMatchers("/getTransaction").permitAll()
+						.requestMatchers("/updateTransaction").permitAll()
 						.anyRequest().authenticated()
 						)
 				.sessionManagement(session -> session
