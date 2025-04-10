@@ -47,6 +47,11 @@ public class SecurityConfig {
 						.requestMatchers("/getAssets").permitAll()
 						.requestMatchers("/updateAsset").permitAll()
 						.requestMatchers("/deleteAsset/{id}").permitAll()
+						.requestMatchers("/export/pdf").permitAll()
+						.requestMatchers("/export/csv").permitAll()
+						.requestMatchers("/breakdown/category").permitAll()
+						.requestMatchers("/breakdown/month").permitAll()
+						.requestMatchers("/tax-summary").permitAll()
 						.anyRequest().authenticated()
 						)
 				.sessionManagement(session -> session
