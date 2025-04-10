@@ -43,7 +43,10 @@ public class SecurityConfig {
 						.requestMatchers("/updateBudget").permitAll()
 						.requestMatchers("/getBudget").permitAll()
 						.requestMatchers("/Budget/delete/{id}").permitAll()
-						
+						.requestMatchers("/addAsset").permitAll()
+						.requestMatchers("/getAssets").permitAll()
+						.requestMatchers("/updateAsset").permitAll()
+						.requestMatchers("/deleteAsset/{id}").permitAll()
 						.anyRequest().authenticated()
 						)
 				.sessionManagement(session -> session
