@@ -37,4 +37,10 @@ public class TransactionService {
 		return transactionRepository.save(transaction);
 		
 	}
+	
+	
+	public Boolean deleteTransaction(int id) {
+		transactionRepository.deleteById(id);
+		return true;
+	}
 }
