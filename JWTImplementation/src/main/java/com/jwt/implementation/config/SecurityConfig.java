@@ -52,6 +52,10 @@ public class SecurityConfig {
 						.requestMatchers("/breakdown/category").permitAll()
 						.requestMatchers("/breakdown/month").permitAll()
 						.requestMatchers("/tax-summary").permitAll()
+						.requestMatchers("/addGoal").permitAll()
+						.requestMatchers("/getGoals").permitAll()
+						.requestMatchers("/updateGoal").permitAll()
+						.requestMatchers("/deleteGoal/{id}").permitAll()
 						.anyRequest().authenticated()
 						)
 				.sessionManagement(session -> session
