@@ -18,15 +18,20 @@ public class Budget {
     private LocalDate startDate;
     private LocalDate endDate;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     public Budget() {}
 
-    public Budget(Integer id, BigDecimal amount, String period, BigDecimal spent, LocalDate startDate, LocalDate endDate) {
+    public Budget(Integer id, BigDecimal amount, String period, BigDecimal spent, LocalDate startDate, LocalDate endDate, User user) {
         this.id = id;
         this.amount = amount;
         this.period = period;
         this.spent = spent;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.user = user;
     }
 
     // Getters and Setters
@@ -47,4 +52,7 @@ public class Budget {
 
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 }
