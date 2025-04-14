@@ -14,30 +14,45 @@ public class ReportController {
     @Autowired
     private ReportService reportService;
 
+    /**
+     * Exports the transaction report as a PDF for the currently authenticated user.
+     */
     @GetMapping("/export/pdf")
     @CrossOrigin(origins = "http://localhost:3000")
-    public String exportAsPDF(@RequestParam String user) throws Exception {
-        return reportService.exportAsPDF(user);
+    public String exportAsPDF() throws Exception {
+        return reportService.exportAsPDF();
     }
 
+    /**
+     * Exports the transaction report as a CSV for the currently authenticated user.
+     */
     @GetMapping("/export/csv")
     @CrossOrigin(origins = "http://localhost:3000")
-    public String exportAsCSV(@RequestParam String user) throws Exception {
-        return reportService.exportAsCSV(user);
+    public String exportAsCSV() throws Exception {
+        return reportService.exportAsCSV();
     }
 
+    /**
+     * Retrieves a breakdown of transactions by category for the currently authenticated user.
+     */
     @GetMapping("/breakdown/category")
     @CrossOrigin(origins = "http://localhost:3000")
     public Map<String, BigDecimal> getCategoryBreakdown() {
         return reportService.breakdownByCategory();
     }
 
+    /**
+     * Retrieves a breakdown of transactions by month for the currently authenticated user.
+     */
     @GetMapping("/breakdown/month")
     @CrossOrigin(origins = "http://localhost:3000")
     public Map<Integer, BigDecimal> getMonthBreakdown() {
         return reportService.breakdownByMonth();
     }
 
+    /**
+     * Retrieves the tax summary for the currently authenticated user.
+     */
     @GetMapping("/tax-summary")
     @CrossOrigin(origins = "http://localhost:3000")
     public BigDecimal getTaxSummary() {

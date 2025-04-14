@@ -10,22 +10,25 @@ public class Report {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private String type; // PDF or CSV
+    private String type;        // PDF or CSV
     private String category;
     private LocalDate generatedDate;
-    private String generatedBy;
     private String fileName;
 
-    public Report() {
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    public Report(Integer id, String type, String category, LocalDate generatedDate, String generatedBy, String fileName) {
+    // Constructors
+    public Report() {}
+
+    public Report(Integer id, String type, String category, LocalDate generatedDate, String fileName, User user) {
         this.id = id;
         this.type = type;
         this.category = category;
         this.generatedDate = generatedDate;
-        this.generatedBy = generatedBy;
         this.fileName = fileName;
+        this.user = user;
     }
 
     // Getters and Setters
@@ -41,9 +44,9 @@ public class Report {
     public LocalDate getGeneratedDate() { return generatedDate; }
     public void setGeneratedDate(LocalDate generatedDate) { this.generatedDate = generatedDate; }
 
-    public String getGeneratedBy() { return generatedBy; }
-    public void setGeneratedBy(String generatedBy) { this.generatedBy = generatedBy; }
-
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 }
