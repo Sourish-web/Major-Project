@@ -1,13 +1,17 @@
 package com.jwt.implementation.service;
 
 import com.jwt.implementation.entity.Subscription;
+import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.SubscriptionRepository;
+import com.jwt.implementation.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class SubscriptionService {
@@ -15,39 +19,78 @@ public class SubscriptionService {
     @Autowired
     private SubscriptionRepository subscriptionRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    private User getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof User)) {
+            throw new RuntimeException("Invalid authentication principal.");
+        }
+
+        User currentUser = (User) principal;
+        return userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found."));
+    }
+
     public Subscription addSubscription(Subscription sub) {
+        User currentUser = getCurrentUser();
         sub.setCategory(autoCategorize(sub.getName()));
+        sub.setUser(currentUser);
         return subscriptionRepository.save(sub);
     }
 
     public List<Subscription> getAllSubscriptions() {
-        return subscriptionRepository.findAll();
+        User currentUser = getCurrentUser();
+        return subscriptionRepository.findByUser(currentUser);
     }
 
     public Boolean deleteSubscription(int id) {
-        subscriptionRepository.deleteById(id);
+        Subscription subscription = subscriptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Subscription not found."));
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(subscription.getUser().getId(), currentUser.getId())) {
+            throw new RuntimeException("Unauthorized to delete this subscription.");
+        }
+
+        subscriptionRepository.delete(subscription);
         return true;
     }
 
     public Subscription updateSubscription(Subscription sub) {
-        return subscriptionRepository.save(sub);
+        Subscription existing = subscriptionRepository.findById(sub.getId())
+                .orElseThrow(() -> new RuntimeException("Subscription not found."));
+        User currentUser = getCurrentUser();
+
+        if (!Objects.equals(existing.getUser().getId(), currentUser.getId())) {
+            throw new RuntimeException("Unauthorized to update this subscription.");
+        }
+
+        existing.setName(sub.getName());
+        existing.setCost(sub.getCost());
+        existing.setRenewalDate(sub.getRenewalDate());
+        existing.setFrequency(sub.getFrequency());
+        existing.setPaymentMethod(sub.getPaymentMethod());
+        existing.setCategory(autoCategorize(sub.getName()));
+        return subscriptionRepository.save(existing);
     }
 
     public List<Subscription> getUpcomingRenewals() {
         LocalDate today = LocalDate.now();
         LocalDate upcoming = today.plusDays(7);
-        return subscriptionRepository.findByRenewalDateBetween(today, upcoming);
+        User currentUser = getCurrentUser();
+        return subscriptionRepository.findByUserAndRenewalDateBetween(currentUser, today, upcoming);
     }
 
     public BigDecimal getMonthlyCostSummary() {
-        return subscriptionRepository.findAll().stream()
+        return getAllSubscriptions().stream()
                 .filter(s -> "Monthly".equalsIgnoreCase(s.getFrequency()))
                 .map(Subscription::getCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public BigDecimal getYearlyCostSummary() {
-        return subscriptionRepository.findAll().stream()
+        return getAllSubscriptions().stream()
                 .filter(s -> "Yearly".equalsIgnoreCase(s.getFrequency()))
                 .map(Subscription::getCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

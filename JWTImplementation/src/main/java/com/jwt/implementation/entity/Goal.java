@@ -18,16 +18,22 @@ public class Goal {
     private LocalDate targetDate;
     private String status; // Completed, In Progress, Missed
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     // Constructors
     public Goal() {}
 
-    public Goal(Integer id, String name, BigDecimal targetAmount, BigDecimal currentAmount, LocalDate targetDate, String status) {
+    public Goal(Integer id, String name, BigDecimal targetAmount, BigDecimal currentAmount,
+                LocalDate targetDate, String status, User user) {
         this.id = id;
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
         this.targetDate = targetDate;
         this.status = status;
+        this.user = user;
     }
 
     // Getters & Setters
@@ -77,5 +83,13 @@ public class Goal {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

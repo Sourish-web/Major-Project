@@ -18,9 +18,16 @@ public class Subscription {
     private String paymentMethod;
     private String category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     public Subscription() {}
 
-    public Subscription(Integer id, String name, BigDecimal cost, LocalDate renewalDate, String frequency, String paymentMethod, String category) {
+    // All-Args Constructor + Getters and Setters (including user)
+
+    public Subscription(Integer id, String name, BigDecimal cost, LocalDate renewalDate, String frequency,
+                        String paymentMethod, String category, User user) {
         this.id = id;
         this.name = name;
         this.cost = cost;
@@ -28,63 +35,32 @@ public class Subscription {
         this.frequency = frequency;
         this.paymentMethod = paymentMethod;
         this.category = category;
+        this.user = user;
     }
 
-    // Getters and Setters
-    
-    public Integer getId() {
-        return id;
-    }
+    // Getters and setters for all fields
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
 
-    public String getName() {
-        return name;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public BigDecimal getCost() { return cost; }
+    public void setCost(BigDecimal cost) { this.cost = cost; }
 
-    public BigDecimal getCost() {
-        return cost;
-    }
+    public LocalDate getRenewalDate() { return renewalDate; }
+    public void setRenewalDate(LocalDate renewalDate) { this.renewalDate = renewalDate; }
 
-    public void setCost(BigDecimal cost) {
-        this.cost = cost;
-    }
+    public String getFrequency() { return frequency; }
+    public void setFrequency(String frequency) { this.frequency = frequency; }
 
-    public LocalDate getRenewalDate() {
-        return renewalDate;
-    }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
 
-    public void setRenewalDate(LocalDate renewalDate) {
-        this.renewalDate = renewalDate;
-    }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
-    public String getFrequency() {
-        return frequency;
-    }
-
-    public void setFrequency(String frequency) {
-        this.frequency = frequency;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 }
