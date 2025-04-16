@@ -55,4 +55,11 @@ public class SubscriptionController {
     public Boolean deleteSubscription(@PathVariable int id) {
         return subscriptionService.deleteSubscription(id);
     }
+
+    // New endpoint to update payment status (e.g., after Razorpay callback)
+    @PostMapping("/updatePaymentStatus")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public Subscription updatePaymentStatus(@RequestParam String razorpayOrderId, @RequestParam String status) {
+        return subscriptionService.updatePaymentStatus(razorpayOrderId, status);
+    }
 }

@@ -18,16 +18,18 @@ public class Subscription {
     private String paymentMethod;
     private String category;
 
+    // Razorpay-specific fields
+    private String razorpayOrderId;
+    private String paymentStatus; // e.g., CREATED, PAID, FAILED
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
     public Subscription() {}
 
-    // All-Args Constructor + Getters and Setters (including user)
-
     public Subscription(Integer id, String name, BigDecimal cost, LocalDate renewalDate, String frequency,
-                        String paymentMethod, String category, User user) {
+                        String paymentMethod, String category, String razorpayOrderId, String paymentStatus, User user) {
         this.id = id;
         this.name = name;
         this.cost = cost;
@@ -35,10 +37,12 @@ public class Subscription {
         this.frequency = frequency;
         this.paymentMethod = paymentMethod;
         this.category = category;
+        this.razorpayOrderId = razorpayOrderId;
+        this.paymentStatus = paymentStatus;
         this.user = user;
     }
 
-    // Getters and setters for all fields
+    // Getters and Setters
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -60,6 +64,12 @@ public class Subscription {
 
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public String getRazorpayOrderId() { return razorpayOrderId; }
+    public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

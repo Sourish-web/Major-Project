@@ -63,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/yearlyCost").permitAll()
                         .requestMatchers("/updateSubscription").permitAll()
                         .requestMatchers("/deleteSubscription/{id}").permitAll()
+                        .requestMatchers("/updatePaymentStatus").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

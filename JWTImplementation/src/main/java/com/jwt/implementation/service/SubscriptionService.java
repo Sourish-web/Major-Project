@@ -37,6 +37,7 @@ public class SubscriptionService {
         User currentUser = getCurrentUser();
         sub.setCategory(autoCategorize(sub.getName()));
         sub.setUser(currentUser);
+        sub.setPaymentStatus("CREATED"); // default status
         return subscriptionRepository.save(sub);
     }
 
@@ -72,6 +73,8 @@ public class SubscriptionService {
         existing.setFrequency(sub.getFrequency());
         existing.setPaymentMethod(sub.getPaymentMethod());
         existing.setCategory(autoCategorize(sub.getName()));
+        existing.setRazorpayOrderId(sub.getRazorpayOrderId());
+        existing.setPaymentStatus(sub.getPaymentStatus());
         return subscriptionRepository.save(existing);
     }
 
@@ -94,6 +97,13 @@ public class SubscriptionService {
                 .filter(s -> "Yearly".equalsIgnoreCase(s.getFrequency()))
                 .map(Subscription::getCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public Subscription updatePaymentStatus(String razorpayOrderId, String status) {
+        Subscription sub = subscriptionRepository.findByRazorpayOrderId(razorpayOrderId)
+                .orElseThrow(() -> new RuntimeException("Subscription with given Razorpay Order ID not found."));
+        sub.setPaymentStatus(status);
+        return subscriptionRepository.save(sub);
     }
 
     private String autoCategorize(String name) {
