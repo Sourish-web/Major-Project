@@ -1,7 +1,9 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.entity.Goal;
 import com.jwt.implementation.entity.Transaction;
 import com.jwt.implementation.entity.User;
+import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.TransactionRepository;
 import com.jwt.implementation.repository.UserRepository;
 
@@ -9,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,6 +24,9 @@ public class TransactionService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private GoalRepository goalRepository; // Added for contributeToGoal
 
     /**
      * Retrieves the currently authenticated user from the SecurityContext.
@@ -90,5 +97,37 @@ public class TransactionService {
 
         transactionRepository.delete(transaction);
         return true;
+    }
+
+    /**
+     * Links a transaction to a goal and updates the goal's currentAmount.
+     */
+    public Transaction contributeToGoal(Integer transactionId, Integer goalId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found."));
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new RuntimeException("Goal not found."));
+
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(transaction.getUser().getId(), currentUser.getId()) ||
+            !Objects.equals(goal.getUser().getId(), currentUser.getId())) {
+            throw new RuntimeException("Unauthorized to link transaction to goal.");
+        }
+
+        if (transaction.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Transaction amount must be positive to contribute to a goal.");
+        }
+
+        transaction.setGoalId(goalId);
+        goal.setCurrentAmount(goal.getCurrentAmount().add(transaction.getAmount()));
+
+        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            goal.setStatus("Completed");
+        } else if (goal.getTargetDate().isBefore(LocalDate.now())) {
+            goal.setStatus("Missed");
+        }
+
+        goalRepository.save(goal);
+        return transactionRepository.save(transaction);
     }
 }

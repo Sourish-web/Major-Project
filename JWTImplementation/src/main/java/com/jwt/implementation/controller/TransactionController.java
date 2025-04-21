@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/transaction") // You can apply this globally to the class
+@RequestMapping("/transaction")
 public class TransactionController {
 
     @Autowired
     private TransactionService transactionService;
 
     @PostMapping("/add")
-    @CrossOrigin(origins = "http://localhost:3000") 
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<Transaction> addTransaction(@RequestBody Transaction transaction) {
         try {
             Transaction savedTransaction = transactionService.addTransaction(transaction);
@@ -28,7 +28,7 @@ public class TransactionController {
     }
 
     @GetMapping("/all")
-    @CrossOrigin(origins = "http://localhost:3000") 
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<List<Transaction>> getAllTransaction() {
         try {
             List<Transaction> transactions = transactionService.getAllTransaction();
@@ -39,7 +39,7 @@ public class TransactionController {
     }
 
     @PostMapping("/update")
-    @CrossOrigin(origins = "http://localhost:3000") 
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<Transaction> updateTransaction(@RequestBody Transaction transaction) {
         try {
             Transaction updatedTransaction = transactionService.updateTransaction(transaction);
@@ -50,13 +50,24 @@ public class TransactionController {
     }
 
     @GetMapping("/delete/{id}")
-    @CrossOrigin(origins = "http://localhost:3000") 
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<Void> deleteTransaction(@PathVariable int id) {
         try {
             boolean deleted = transactionService.deleteTransaction(id);
             return deleted ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @PostMapping("/contributeToGoal/{transactionId}/{goalId}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public ResponseEntity<Transaction> contributeToGoal(@PathVariable Integer transactionId, @PathVariable Integer goalId) {
+        try {
+            Transaction updatedTransaction = transactionService.contributeToGoal(transactionId, goalId);
+            return ResponseEntity.ok(updatedTransaction);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
 }

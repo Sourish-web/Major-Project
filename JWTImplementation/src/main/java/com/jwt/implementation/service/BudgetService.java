@@ -76,6 +76,7 @@ public class BudgetService {
         existingBudget.setSpent(updatedBudget.getSpent());
         existingBudget.setStartDate(updatedBudget.getStartDate());
         existingBudget.setEndDate(updatedBudget.getEndDate());
+        existingBudget.setCategory(updatedBudget.getCategory()); // Added to update category
 
         return budgetRepository.save(existingBudget);
     }

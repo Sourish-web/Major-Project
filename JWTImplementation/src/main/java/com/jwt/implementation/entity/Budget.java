@@ -17,6 +17,8 @@ public class Budget {
     private BigDecimal spent;
     private LocalDate startDate;
     private LocalDate endDate;
+    @Column
+    private String category; // New field for category (e.g., "Food", "Transport")
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -24,13 +26,15 @@ public class Budget {
 
     public Budget() {}
 
-    public Budget(Integer id, BigDecimal amount, String period, BigDecimal spent, LocalDate startDate, LocalDate endDate, User user) {
+    public Budget(Integer id, BigDecimal amount, String period, BigDecimal spent, 
+                 LocalDate startDate, LocalDate endDate, String category, User user) {
         this.id = id;
         this.amount = amount;
         this.period = period;
         this.spent = spent;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.category = category;
         this.user = user;
     }
 
@@ -52,6 +56,9 @@ public class Budget {
 
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

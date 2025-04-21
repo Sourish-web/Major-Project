@@ -17,6 +17,8 @@ public class Goal {
     private BigDecimal currentAmount;
     private LocalDate targetDate;
     private String status; // Completed, In Progress, Missed
+    @Column
+    private String category; // New field for budget category (e.g., "Food", "Savings")
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -26,13 +28,14 @@ public class Goal {
     public Goal() {}
 
     public Goal(Integer id, String name, BigDecimal targetAmount, BigDecimal currentAmount,
-                LocalDate targetDate, String status, User user) {
+                LocalDate targetDate, String status, String category, User user) {
         this.id = id;
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
         this.targetDate = targetDate;
         this.status = status;
+        this.category = category;
         this.user = user;
     }
 
@@ -83,6 +86,14 @@ public class Goal {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public User getUser() {
