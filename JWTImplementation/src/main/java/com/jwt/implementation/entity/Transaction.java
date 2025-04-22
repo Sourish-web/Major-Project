@@ -54,7 +54,7 @@ public class Transaction {
     public void setCategory(String category) { this.category = category; }
 
     public Integer getGoalId() { return goalId; }
-    public void setGoalId(Integer goalId) { this.goalId = goalId; }
+    public void setGoalId(Integer goalId2) { this.goalId = goalId2; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

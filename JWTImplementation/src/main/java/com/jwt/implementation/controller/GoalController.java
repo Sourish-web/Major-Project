@@ -7,7 +7,9 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.jwt.implementation.dto.GoalInvitationResponse;
 import com.jwt.implementation.entity.Goal;
+import com.jwt.implementation.entity.GoalInvitation;
 import com.jwt.implementation.service.GoalService;
 
 @RestController
@@ -49,4 +51,34 @@ public class GoalController {
         }
         return goalService.allocateToGoal(id, amount);
     }
+    @PostMapping("/invite")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public GoalInvitation inviteUserToGoal(@RequestBody Map<String, Integer> payload) {
+        Integer goalId = payload.get("goalId");
+        Integer invitedUserId = payload.get("invitedUserId");
+        if (goalId == null || invitedUserId == null) {
+            throw new RuntimeException("Missing goalId or invitedUserId.");
+        }
+        return goalService.inviteUserToGoal(goalId, invitedUserId);
+    }
+
+    @PostMapping("/accept-invitation/{invitationId}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public Goal acceptGoalInvitation(@PathVariable Integer invitationId) {
+        return goalService.acceptGoalInvitation(invitationId);
+    }
+
+    @PostMapping("/reject-invitation/{invitationId}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public void rejectGoalInvitation(@PathVariable Integer invitationId) {
+        goalService.rejectGoalInvitation(invitationId);
+    }
+    
+    @GetMapping("/my-invitations")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public List<GoalInvitationResponse> getMyInvitations() {
+        return goalService.getMyInvitations();
+    }
+
+    
 }

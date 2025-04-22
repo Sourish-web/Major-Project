@@ -1,11 +1,13 @@
 package com.jwt.implementation.entity;
 
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
-import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
+@Table(name = "goals")
 public class Goal {
 
     @Id
@@ -16,20 +18,26 @@ public class Goal {
     private BigDecimal targetAmount;
     private BigDecimal currentAmount;
     private LocalDate targetDate;
-    private String status; // Completed, In Progress, Missed
-    @Column
-    private String category; // New field for budget category (e.g., "Food", "Savings")
+    private String status;
+    private String category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Constructors
-    public Goal() {}
+    // Add a ManyToMany relationship with User for collaborators
+    @ManyToMany
+    @JoinTable(
+        name = "goal_collaborators",
+        joinColumns = @JoinColumn(name = "goal_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> collaborators = new HashSet<>();
 
-    public Goal(Integer id, String name, BigDecimal targetAmount, BigDecimal currentAmount,
-                LocalDate targetDate, String status, String category, User user) {
-        this.id = id;
+    public Goal() {
+    }
+
+    public Goal(String name, BigDecimal targetAmount, BigDecimal currentAmount, LocalDate targetDate, String status, String category, User user) {
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
@@ -39,7 +47,8 @@ public class Goal {
         this.user = user;
     }
 
-    // Getters & Setters
+    // Getters and setters
+
     public Integer getId() {
         return id;
     }
@@ -102,5 +111,22 @@ public class Goal {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public Set<User> getCollaborators() {
+        return collaborators;
+    }
+
+    public void setCollaborators(Set<User> collaborators) {
+        this.collaborators = collaborators;
+    }
+
+    // Utility methods
+    public void addCollaborator(User user) {
+        this.collaborators.add(user);
+    }
+
+    public void removeCollaborator(User user) {
+        this.collaborators.remove(user);
     }
 }
