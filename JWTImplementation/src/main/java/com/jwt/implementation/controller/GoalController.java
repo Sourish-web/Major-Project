@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.jwt.implementation.dto.GoalInsightsResponse;
 import com.jwt.implementation.dto.GoalInvitationResponse;
 import com.jwt.implementation.entity.Goal;
 import com.jwt.implementation.entity.GoalInvitation;
@@ -79,6 +80,13 @@ public class GoalController {
     public List<GoalInvitationResponse> getMyInvitations() {
         return goalService.getMyInvitations();
     }
+    
+    @GetMapping("/goalInsights")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public GoalInsightsResponse getGoalInsights() {
+        return goalService.getGoalInsights();
+    }
+
 
     
 }

@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 @Entity
 @Table(name = "goals")
 public class Goal {
@@ -20,12 +22,15 @@ public class Goal {
     private LocalDate targetDate;
     private String status;
     private String category;
-
+    
+    @Column(updatable = false)
+    @CreationTimestamp
+    private LocalDate createdAt;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Add a ManyToMany relationship with User for collaborators
     @ManyToMany
     @JoinTable(
         name = "goal_collaborators",
@@ -34,8 +39,7 @@ public class Goal {
     )
     private Set<User> collaborators = new HashSet<>();
 
-    public Goal() {
-    }
+    public Goal() {}
 
     public Goal(String name, BigDecimal targetAmount, BigDecimal currentAmount, LocalDate targetDate, String status, String category, User user) {
         this.name = name;
@@ -45,6 +49,7 @@ public class Goal {
         this.status = status;
         this.category = category;
         this.user = user;
+        this.createdAt = LocalDate.now();
     }
 
     // Getters and setters
@@ -103,6 +108,14 @@ public class Goal {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public LocalDate getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDate createdAt) {
+        this.createdAt = createdAt;
     }
 
     public User getUser() {

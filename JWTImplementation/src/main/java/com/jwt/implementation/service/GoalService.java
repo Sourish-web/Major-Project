@@ -1,5 +1,6 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.dto.GoalInsightsResponse;
 import com.jwt.implementation.dto.GoalInvitationResponse;
 import com.jwt.implementation.entity.Budget;
 import com.jwt.implementation.entity.Goal;
@@ -10,14 +11,23 @@ import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.GoalInvitationRepository;
 import com.jwt.implementation.repository.UserRepository;
 
+import ch.qos.logback.core.util.Duration;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -261,6 +271,89 @@ public class GoalService {
 
         // Return the list of responses
         return responses;
+    }
+    public GoalInsightsResponse getGoalInsights() {
+        // Get current user and their goals
+        User currentUser = getCurrentUser();
+        List<Goal> goals = goalRepository.findByUser(currentUser);
+        
+        // Initialize response with default values
+        GoalInsightsResponse response = new GoalInsightsResponse();
+        
+        if (goals == null || goals.isEmpty()) {
+            return response; // Return empty but properly initialized response
+        }
+
+        // Initialize all calculation variables
+        BigDecimal totalTarget = BigDecimal.ZERO;
+        BigDecimal totalSaved = BigDecimal.ZERO;
+        double totalCompletionPercent = 0;
+        Map<String, Integer> categoryCount = new HashMap<>();
+        Map<String, BigDecimal> monthlyTrend = new LinkedHashMap<>();
+        long totalDaysToComplete = 0;
+        int completedGoals = 0;
+        int activeGoals = 0;
+        LocalDate mostRecentGoalDate = null;
+        LocalDate oldestGoalDate = null;
+
+        // Process each goal
+        for (Goal goal : goals) {
+            // Sum amounts
+            totalTarget = totalTarget.add(goal.getTargetAmount() != null ? goal.getTargetAmount() : BigDecimal.ZERO);
+            totalSaved = totalSaved.add(goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO);
+
+            // Calculate completion percentage (0-100)
+            BigDecimal target = goal.getTargetAmount() != null ? goal.getTargetAmount() : BigDecimal.ONE;
+            BigDecimal current = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
+            double completion = target.compareTo(BigDecimal.ZERO) != 0 ? 
+                current.divide(target, 4, RoundingMode.HALF_UP).doubleValue() * 100 : 0;
+            totalCompletionPercent += completion;
+
+            // Count by category
+            String category = goal.getCategory() != null ? goal.getCategory() : "Uncategorized";
+            categoryCount.put(category, categoryCount.getOrDefault(category, 0) + 1);
+
+            // Track goal status
+            if ("Completed".equalsIgnoreCase(goal.getStatus())) {
+                long days = ChronoUnit.DAYS.between(
+                    goal.getCreatedAt() != null ? goal.getCreatedAt() : LocalDate.now(),
+                    goal.getTargetDate() != null ? goal.getTargetDate() : LocalDate.now()
+                );
+                totalDaysToComplete += days;
+                completedGoals++;
+            } else {
+                activeGoals++;
+            }
+
+            // Monthly savings trend
+            YearMonth month = YearMonth.from(goal.getCreatedAt() != null ? goal.getCreatedAt() : LocalDate.now());
+            BigDecimal monthlyAmount = monthlyTrend.getOrDefault(month.toString(), BigDecimal.ZERO);
+            monthlyTrend.put(month.toString(), monthlyAmount.add(current));
+
+            // Track dates
+            LocalDate createdAt = goal.getCreatedAt() != null ? goal.getCreatedAt() : LocalDate.now();
+            if (mostRecentGoalDate == null || createdAt.isAfter(mostRecentGoalDate)) {
+                mostRecentGoalDate = createdAt;
+            }
+            if (oldestGoalDate == null || createdAt.isBefore(oldestGoalDate)) {
+                oldestGoalDate = createdAt;
+            }
+        }
+
+        // Set all calculated values in response
+        response.setTotalGoals(goals.size());
+        response.setTotalTargetAmount(totalTarget);
+        response.setTotalSavedAmount(totalSaved);
+        response.setAverageCompletionRate(goals.isEmpty() ? 0 : totalCompletionPercent / goals.size());
+        response.setGoalsByCategory(categoryCount);
+        response.setMonthlySavings(monthlyTrend);
+        response.setAverageTimeToCompleteInDays(completedGoals > 0 ? (double) totalDaysToComplete / completedGoals : 0);
+        response.setCompletedGoals(completedGoals);
+        response.setActiveGoals(activeGoals);
+        response.setMostRecentGoalDate(mostRecentGoalDate);
+        response.setOldestGoalDate(oldestGoalDate);
+
+        return response;
     }
 
 

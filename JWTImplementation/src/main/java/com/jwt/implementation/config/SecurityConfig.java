@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/accept-invitation/{invitationId}").permitAll()
                         .requestMatchers("/reject-invitation/{invitationId}").permitAll()
                         .requestMatchers("/my-invitations").permitAll()
+                        .requestMatchers("/goalInsights").permitAll()
                         .requestMatchers("/addSubscription").permitAll()
                         .requestMatchers("/getSubscriptions").permitAll()
                         .requestMatchers("/getUpcomingRenewals").permitAll()
