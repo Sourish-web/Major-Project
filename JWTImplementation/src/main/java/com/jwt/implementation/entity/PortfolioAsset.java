@@ -1,7 +1,6 @@
 package com.jwt.implementation.entity;
 
 import java.math.BigDecimal;
-
 import jakarta.persistence.*;
 
 @Entity
@@ -22,11 +21,16 @@ public class PortfolioAsset {
     @JoinColumn(name = "user_id")
     private User user;
 
+    // Profit/Loss Fields
+    private BigDecimal profitLoss;
+    private BigDecimal profitLossPercentage;
+
     public PortfolioAsset() {
     }
 
     public PortfolioAsset(Integer id, String assetName, String assetType, BigDecimal quantity,
-                          BigDecimal purchasePrice, BigDecimal currentPrice, String symbol, User user) {
+                          BigDecimal purchasePrice, BigDecimal currentPrice, String symbol, User user,
+                          BigDecimal profitLoss, BigDecimal profitLossPercentage) {
         this.id = id;
         this.assetName = assetName;
         this.assetType = assetType;
@@ -35,6 +39,8 @@ public class PortfolioAsset {
         this.currentPrice = currentPrice;
         this.symbol = symbol;
         this.user = user;
+        this.profitLoss = profitLoss;
+        this.profitLossPercentage = profitLossPercentage;
     }
 
     public Integer getId() {
@@ -99,5 +105,22 @@ public class PortfolioAsset {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    // Profit/Loss getters and setters
+    public BigDecimal getProfitLoss() {
+        return profitLoss;
+    }
+
+    public void setProfitLoss(BigDecimal profitLoss) {
+        this.profitLoss = profitLoss;
+    }
+
+    public BigDecimal getProfitLossPercentage() {
+        return profitLossPercentage;
+    }
+
+    public void setProfitLossPercentage(BigDecimal profitLossPercentage) {
+        this.profitLossPercentage = profitLossPercentage;
     }
 }

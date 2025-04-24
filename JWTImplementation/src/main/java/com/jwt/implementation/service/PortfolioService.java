@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,10 +67,36 @@ public class PortfolioService {
     }
 
     public List<PortfolioAsset> getAllAssets() {
+        // Get the current authenticated user
         User currentUser = getCurrentUser();
-        return portfolioRepository.findByUser(currentUser);
-    }
 
+        // Fetch assets related to the current user from the database
+        List<PortfolioAsset> assets = portfolioRepository.findByUser(currentUser);
+
+        // Calculate profit/loss and profit/loss percentage for each asset
+        return assets.stream().map(asset -> {
+            // Calculate Profit/Loss (currentPrice - purchasePrice) * quantity
+            BigDecimal profitLoss = asset.getCurrentPrice()
+                                         .subtract(asset.getPurchasePrice())
+                                         .multiply(asset.getQuantity());
+            asset.setProfitLoss(profitLoss);
+
+            // Calculate Profit/Loss Percentage ((currentPrice - purchasePrice) / purchasePrice) * 100
+            if (asset.getPurchasePrice().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal percent = asset.getCurrentPrice()
+                                          .subtract(asset.getPurchasePrice())
+                                          .divide(asset.getPurchasePrice(), 4, BigDecimal.ROUND_HALF_UP)
+                                          .multiply(BigDecimal.valueOf(100));
+                asset.setProfitLossPercentage(percent);
+            } else {
+                // Avoid division by zero
+                asset.setProfitLossPercentage(BigDecimal.ZERO);
+            }
+
+            // Return the updated asset entity
+            return asset;
+        }).collect(Collectors.toList());
+    }
     public PortfolioAsset updateAsset(PortfolioAsset updatedAsset) {
         PortfolioAsset existing = portfolioRepository.findById(updatedAsset.getId())
                 .orElseThrow(() -> new RuntimeException("Asset not found."));
@@ -104,19 +131,31 @@ public class PortfolioService {
         return true;
     }
 
+    private final Map<String, BigDecimal> priceCache = new ConcurrentHashMap<>();
+
     private BigDecimal fetchLivePrice(String symbol, String assetType) {
+        String key = symbol.toLowerCase() + ":" + assetType.toLowerCase();
+        if (priceCache.containsKey(key)) {
+            return priceCache.get(key);
+        }
+
         try {
+            BigDecimal price = BigDecimal.ZERO;
+
             if ("crypto".equalsIgnoreCase(assetType)) {
                 String apiUrl = "https://api.coingecko.com/api/v3/simple/price?ids=" + symbol.toLowerCase() + "&vs_currencies=usd";
                 String response = restTemplate.getForObject(apiUrl, String.class);
                 JsonNode root = objectMapper.readTree(response);
-                return root.get(symbol.toLowerCase()).get("usd").decimalValue();
+                price = root.get(symbol.toLowerCase()).get("usd").decimalValue();
             } else if ("stock".equalsIgnoreCase(assetType)) {
                 String apiUrl = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + symbol.toUpperCase();
                 String response = restTemplate.getForObject(apiUrl, String.class);
                 JsonNode root = objectMapper.readTree(response);
-                return root.at("/quoteResponse/result/0/regularMarketPrice").decimalValue();
+                price = root.at("/quoteResponse/result/0/regularMarketPrice").decimalValue();
             }
+
+            priceCache.put(key, price);
+            return price;
         } catch (Exception e) {
             e.printStackTrace();
         }
