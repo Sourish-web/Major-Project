@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.jwt.implementation.dto.PortfolioSummaryDTO;
 import com.jwt.implementation.dto.PriceHistoryDTO;
 import com.jwt.implementation.entity.PortfolioAsset;
 import com.jwt.implementation.service.PortfolioService;
@@ -50,6 +51,15 @@ public class PortfolioController {
         List<PriceHistoryDTO> history = portfolioService.getAssetPerformance(symbol, type);
         return ResponseEntity.ok(history);
     }
+    
+    @GetMapping("/portfolio/summary")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public ResponseEntity<PortfolioSummaryDTO> getPortfolioSummary() {
+        PortfolioSummaryDTO summary = portfolioService.getPortfolioSummary();
+        return ResponseEntity.ok(summary);
+    }
+ 
+
 
 
 

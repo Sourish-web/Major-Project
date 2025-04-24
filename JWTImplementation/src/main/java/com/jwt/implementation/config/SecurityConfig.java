@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/updateAsset").permitAll()
                         .requestMatchers("/deleteAsset/{id}").permitAll()
                         .requestMatchers("/performance").permitAll()
+                        .requestMatchers("/portfolio/summary").permitAll()
                         .requestMatchers("/export/pdf").permitAll()
                         .requestMatchers("/export/csv").permitAll()
                         .requestMatchers("/breakdown/category").permitAll()

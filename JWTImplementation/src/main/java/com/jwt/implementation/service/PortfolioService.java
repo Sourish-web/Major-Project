@@ -2,6 +2,7 @@ package com.jwt.implementation.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jwt.implementation.dto.PortfolioSummaryDTO;
 import com.jwt.implementation.dto.PriceHistoryDTO;
 import com.jwt.implementation.entity.PortfolioAsset;
 import com.jwt.implementation.entity.User;
@@ -25,7 +26,9 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class PortfolioService {
@@ -196,6 +199,45 @@ public class PortfolioService {
         history.sort(Comparator.comparing(PriceHistoryDTO::getDate));
         return history;
     }
+    public PortfolioSummaryDTO getPortfolioSummary() {
+        User currentUser = getCurrentUser(); // retrieve from SecurityContext or similar
+        if (currentUser == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        List<PortfolioAsset> assets = portfolioRepository.findByUser(currentUser);
+        if (assets == null || assets.isEmpty()) {
+            return new PortfolioSummaryDTO(BigDecimal.ZERO, BigDecimal.ZERO, Map.of());
+        }
+
+        BigDecimal totalValue = BigDecimal.ZERO;
+        BigDecimal totalProfitLoss = BigDecimal.ZERO;
+
+        for (PortfolioAsset asset : assets) {
+            BigDecimal quantity = asset.getQuantity() != null ? asset.getQuantity() : BigDecimal.ZERO;
+            BigDecimal currentPrice = asset.getCurrentPrice() != null ? asset.getCurrentPrice() : BigDecimal.ZERO;
+            BigDecimal purchasePrice = asset.getPurchasePrice() != null ? asset.getPurchasePrice() : BigDecimal.ZERO;
+
+            BigDecimal assetValue = currentPrice.multiply(quantity);
+            BigDecimal assetCost = purchasePrice.multiply(quantity);
+
+            totalValue = totalValue.add(assetValue);
+            totalProfitLoss = totalProfitLoss.add(assetValue.subtract(assetCost));
+        }
+
+        Map<String, Long> assetCountByType = assets.stream()
+                .filter(asset -> asset.getAssetType() != null)
+                .collect(Collectors.groupingBy(PortfolioAsset::getAssetType, Collectors.counting()));
+
+        return new PortfolioSummaryDTO(totalValue, totalProfitLoss, assetCountByType);
+    }
+
+
+
+
+    
+    
+    
 
 
 }
