@@ -11,4 +11,5 @@ import com.jwt.implementation.entity.User;
 @Repository
 public interface PortfolioRepository extends JpaRepository<PortfolioAsset, Integer> {
     List<PortfolioAsset> findByUser(User user);
+    List<PortfolioAsset> findByUserAndSymbol(User user, String symbol);
 }
