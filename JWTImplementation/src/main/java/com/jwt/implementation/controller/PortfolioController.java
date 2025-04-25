@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import com.jwt.implementation.dto.PortfolioSummaryDTO;
 import com.jwt.implementation.dto.PriceHistoryDTO;
 import com.jwt.implementation.entity.PortfolioAsset;
+import com.jwt.implementation.entity.PortfolioSnapshot;
 import com.jwt.implementation.service.PortfolioService;
 
 @RestController
@@ -58,7 +59,21 @@ public class PortfolioController {
         PortfolioSummaryDTO summary = portfolioService.getPortfolioSummary();
         return ResponseEntity.ok(summary);
     }
- 
+    
+    @GetMapping("/trend")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public ResponseEntity<List<PortfolioSnapshot>> getUserPortfolioTrend() {
+        List<PortfolioSnapshot> trend = portfolioService.getUserPortfolioTrend();
+        return ResponseEntity.ok(trend);
+    }
+    
+    @GetMapping("/test-snapshot")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public String testSnapshot() {
+        portfolioService.takeDailySnapshot();
+        return "Snapshot triggered";
+    }
+  
 
 
 

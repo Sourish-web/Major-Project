@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jwt.implementation.dto.PortfolioSummaryDTO;
 import com.jwt.implementation.dto.PriceHistoryDTO;
 import com.jwt.implementation.entity.PortfolioAsset;
+import com.jwt.implementation.entity.PortfolioSnapshot;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.PortfolioRepository;
+import com.jwt.implementation.repository.PortfolioSnapshotRepository;
 import com.jwt.implementation.repository.UserRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -22,9 +25,12 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,6 +45,10 @@ public class PortfolioService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private PortfolioSnapshotRepository portfolioSnapshotRepository;
+
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -57,13 +67,22 @@ public class PortfolioService {
     }
 
     public PortfolioAsset addAsset(PortfolioAsset asset) {
+        if (!isValidSymbol(asset.getSymbol(), asset.getAssetType())) {
+            throw new IllegalArgumentException("Invalid symbol or asset type: " + asset.getSymbol());
+        }
         User currentUser = getCurrentUser();
         asset.setUser(currentUser);
-
         BigDecimal livePrice = fetchLivePrice(asset.getSymbol(), asset.getAssetType());
+        if (livePrice.compareTo(BigDecimal.ZERO) == 0) {
+            throw new RuntimeException("Unable to fetch live price for symbol: " + asset.getSymbol());
+        }
         asset.setCurrentPrice(livePrice);
-
         return portfolioRepository.save(asset);
+    }
+
+    private boolean isValidSymbol(String symbol, String assetType) {
+        // Implement logic to validate symbols (e.g., check against a list of valid CoinGecko IDs or Yahoo Finance tickers)
+        return symbol != null && !symbol.trim().isEmpty();
     }
 
     public List<PortfolioAsset> getAllAssets() {
@@ -134,8 +153,16 @@ public class PortfolioService {
     private final Map<String, BigDecimal> priceCache = new ConcurrentHashMap<>();
 
     private BigDecimal fetchLivePrice(String symbol, String assetType) {
+        if (symbol == null || symbol.trim().isEmpty()) {
+            System.err.println("Invalid symbol provided: null or empty");
+            throw new IllegalArgumentException("Symbol cannot be null or empty");
+        }
+
         String key = symbol.toLowerCase() + ":" + assetType.toLowerCase();
+        
+        // Return cached price if available
         if (priceCache.containsKey(key)) {
+            System.out.println("Returning cached price for " + key + ": " + priceCache.get(key));
             return priceCache.get(key);
         }
 
@@ -143,23 +170,103 @@ public class PortfolioService {
             BigDecimal price = BigDecimal.ZERO;
 
             if ("crypto".equalsIgnoreCase(assetType)) {
-                String apiUrl = "https://api.coingecko.com/api/v3/simple/price?ids=" + symbol.toLowerCase() + "&vs_currencies=usd";
-                String response = restTemplate.getForObject(apiUrl, String.class);
-                JsonNode root = objectMapper.readTree(response);
-                price = root.get(symbol.toLowerCase()).get("usd").decimalValue();
+                String coinGeckoId = mapToCoinGeckoId(symbol.toLowerCase());
+                String apiUrl = "https://api.coingecko.com/api/v3/simple/price?ids=" + 
+                               coinGeckoId + "&vs_currencies=usd";
+                
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "Mozilla/5.0");
+                ResponseEntity<String> response = restTemplate.exchange(
+                    apiUrl, 
+                    HttpMethod.GET, 
+                    new HttpEntity<>(headers), 
+                    String.class
+                );
+
+                if (response.getStatusCode() != HttpStatus.OK) {
+                    System.err.println("CoinGecko API error for symbol " + symbol + ": HTTP " + response.getStatusCodeValue());
+                    throw new RuntimeException("CoinGecko API returned non-200 status: " + response.getStatusCodeValue());
+                }
+
+                System.out.println("CoinGecko response for " + symbol + ": " + response.getBody());
+                JsonNode root = objectMapper.readTree(response.getBody());
+                
+                if (root.has(coinGeckoId) && root.get(coinGeckoId).has("usd")) {
+                    price = root.get(coinGeckoId).get("usd").decimalValue();
+                } else {
+                    System.err.println("Invalid CoinGecko response for symbol: " + symbol + ", response: " + response.getBody());
+                    throw new RuntimeException("Invalid CoinGecko response format for symbol: " + symbol);
+                }
+                
             } else if ("stock".equalsIgnoreCase(assetType)) {
-                String apiUrl = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + symbol.toUpperCase();
-                String response = restTemplate.getForObject(apiUrl, String.class);
-                JsonNode root = objectMapper.readTree(response);
-                price = root.at("/quoteResponse/result/0/regularMarketPrice").decimalValue();
+                String apiUrl = "https://query1.finance.yahoo.com/v8/finance/chart/" + 
+                               symbol.toUpperCase() + "?interval=1d&range=1mo";
+                
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "Mozilla/5.0");
+                ResponseEntity<String> response = restTemplate.exchange(
+                    apiUrl, 
+                    HttpMethod.GET, 
+                    new HttpEntity<>(headers), 
+                    String.class
+                );
+
+                if (response.getStatusCode() != HttpStatus.OK) {
+                    System.err.println("Yahoo Finance API error for symbol " + symbol + ": HTTP " + response.getStatusCodeValue());
+                    throw new RuntimeException("Yahoo Finance API returned non-200 status: " + response.getStatusCodeValue());
+                }
+
+                System.out.println("Yahoo Finance response for " + symbol + ": " + response.getBody());
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode result = root.path("chart").path("result").get(0);
+                
+                if (result != null && !result.isNull()) {
+                    JsonNode closes = result.path("indicators").path("quote").get(0).path("close");
+                    if (closes != null && closes.isArray() && closes.size() > 0) {
+                        // Get the most recent non-null closing price
+                        for (int i = closes.size() - 1; i >= 0; i--) {
+                            if (!closes.get(i).isNull()) {
+                                price = closes.get(i).decimalValue();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (price.compareTo(BigDecimal.ZERO) == 0) {
+                    System.err.println("No valid price found in Yahoo Finance response for symbol: " + symbol);
+                    throw new RuntimeException("No valid price found in Yahoo Finance response for symbol: " + symbol);
+                }
+            } else {
+                System.err.println("Unsupported asset type: " + assetType);
+                throw new IllegalArgumentException("Unsupported asset type: " + assetType);
             }
 
-            priceCache.put(key, price);
+            // Only cache successful fetches
+            if (price.compareTo(BigDecimal.ZERO) > 0) {
+                priceCache.put(key, price);
+                System.out.println("Cached price for " + key + ": " + price);
+            } else {
+                System.err.println("Fetched price for " + symbol + " is zero or invalid");
+                throw new RuntimeException("Fetched price for " + symbol + " is invalid");
+            }
+            
             return price;
+            
         } catch (Exception e) {
+            System.err.println("Error fetching price for symbol " + symbol + " (" + assetType + "): " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException("Failed to fetch price for symbol " + symbol + ": " + e.getMessage(), e);
         }
-        return BigDecimal.ZERO;
+    }
+
+    private String mapToCoinGeckoId(String symbol) {
+        Map<String, String> tickerToId = new HashMap<>();
+        tickerToId.put("btc", "bitcoin");
+        tickerToId.put("eth", "ethereum");
+        tickerToId.put("ada", "cardano");
+        tickerToId.put("xrp", "ripple");
+        return tickerToId.getOrDefault(symbol.toLowerCase(), symbol.toLowerCase());
     }
     
     public List<PriceHistoryDTO> getAssetPerformance(String symbol, String type) {
@@ -238,15 +345,23 @@ public class PortfolioService {
         history.sort(Comparator.comparing(PriceHistoryDTO::getDate));
         return history;
     }
+    
     public PortfolioSummaryDTO getPortfolioSummary() {
-        User currentUser = getCurrentUser(); // retrieve from SecurityContext or similar
+        System.out.println("Entering getPortfolioSummary");
+        User currentUser = getCurrentUser();
+        System.out.println("Current User: " + (currentUser != null ? currentUser.getId() : "null"));
+
         if (currentUser == null) {
+            System.out.println("Throwing IllegalStateException: User not authenticated");
             throw new IllegalStateException("User not authenticated");
         }
 
         List<PortfolioAsset> assets = portfolioRepository.findByUser(currentUser);
+        System.out.println("Assets found: " + (assets != null ? assets.size() : "null"));
+
         if (assets == null || assets.isEmpty()) {
-            return new PortfolioSummaryDTO(BigDecimal.ZERO, BigDecimal.ZERO, Map.of());
+            System.out.println("Returning empty PortfolioSummaryDTO");
+            return new PortfolioSummaryDTO(BigDecimal.ZERO, BigDecimal.ZERO, Collections.emptyMap());
         }
 
         BigDecimal totalValue = BigDecimal.ZERO;
@@ -257,26 +372,98 @@ public class PortfolioService {
             BigDecimal currentPrice = asset.getCurrentPrice() != null ? asset.getCurrentPrice() : BigDecimal.ZERO;
             BigDecimal purchasePrice = asset.getPurchasePrice() != null ? asset.getPurchasePrice() : BigDecimal.ZERO;
 
+            // Calculate asset value and cost
             BigDecimal assetValue = currentPrice.multiply(quantity);
             BigDecimal assetCost = purchasePrice.multiply(quantity);
 
+            // Calculate profit/loss for the asset
+            BigDecimal profitLoss = assetValue.subtract(assetCost);
+            asset.setProfitLoss(profitLoss);
+
+            // Calculate profit/loss percentage
+            BigDecimal profitLossPercentage = BigDecimal.ZERO;
+            if (assetCost.compareTo(BigDecimal.ZERO) != 0) {
+                profitLossPercentage = profitLoss.divide(assetCost, 4, BigDecimal.ROUND_HALF_UP)
+                        .multiply(new BigDecimal("100"));
+            }
+            asset.setProfitLossPercentage(profitLossPercentage);
+
+            // Save the updated asset
+            portfolioRepository.save(asset);
+
+            // Aggregate totals
             totalValue = totalValue.add(assetValue);
-            totalProfitLoss = totalProfitLoss.add(assetValue.subtract(assetCost));
+            totalProfitLoss = totalProfitLoss.add(profitLoss);
+
+            System.out.println("Asset: " + asset.getSymbol() + ", Value: " + assetValue +
+                    ", Profit/Loss: " + profitLoss + ", Profit/Loss %: " + profitLossPercentage);
         }
 
         Map<String, Long> assetCountByType = assets.stream()
                 .filter(asset -> asset.getAssetType() != null)
                 .collect(Collectors.groupingBy(PortfolioAsset::getAssetType, Collectors.counting()));
 
-        return new PortfolioSummaryDTO(totalValue, totalProfitLoss, assetCountByType);
+        PortfolioSummaryDTO summary = new PortfolioSummaryDTO(totalValue, totalProfitLoss, assetCountByType);
+        System.out.println("Returning PortfolioSummaryDTO: TotalValue=" + totalValue +
+                ", TotalProfitLoss=" + totalProfitLoss + ", AssetCountByType=" + assetCountByType);
+
+        return summary;
+    }
+    
+    @Scheduled(cron = "0 0 0 * * *") // Runs daily at midnight
+    public void takeDailySnapshot() {
+        System.out.println("Running takeDailySnapshot at " + LocalDateTime.now());
+        List<User> users = userRepository.findAll();
+        System.out.println("Users found: " + users.size());
+
+        for (User user : users) {
+            try {
+                System.out.println("Processing user ID: " + user.getId());
+                LocalDate today = LocalDate.now();
+                if (portfolioSnapshotRepository.existsByUserAndSnapshotDate(user, today)) {
+                    System.out.println("Snapshot already exists for user ID: " + user.getId() + " on " + today);
+                    continue;
+                }
+
+                List<PortfolioAsset> assets = portfolioRepository.findByUser(user);
+                System.out.println("Assets found for user ID: " + user.getId() + ": " + assets.size());
+
+                BigDecimal totalValue = assets.stream()
+                        .map(asset -> {
+                            BigDecimal price = asset.getCurrentPrice() != null ? asset.getCurrentPrice() : BigDecimal.ZERO;
+                            BigDecimal quantity = asset.getQuantity() != null ? asset.getQuantity() : BigDecimal.ZERO;
+                            BigDecimal value = price.multiply(quantity);
+                            System.out.println("Asset: " + asset.getSymbol() + ", Value: " + value);
+                            return value;
+                        })
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                System.out.println("Total value for user ID: " + user.getId() + ": " + totalValue);
+                PortfolioSnapshot snapshot = new PortfolioSnapshot(today, totalValue, user);
+                portfolioSnapshotRepository.save(snapshot);
+                System.out.println("Saved snapshot for user ID: " + user.getId() + " on " + today);
+            } catch (Exception e) {
+                System.out.println("Error processing user ID: " + user.getId() + ": " + e.getMessage());
+            }
+        }
     }
 
-
-
-
     
-    
-    
+    public List<PortfolioSnapshot> getUserPortfolioTrend() {
+        System.out.println("Entering getUserPortfolioTrend");
+        User currentUser = getCurrentUser();
+        System.out.println("Current User ID: " + (currentUser != null ? currentUser.getId() : "null"));
+
+        if (currentUser == null) {
+            System.out.println("Throwing RuntimeException: User not authenticated");
+            throw new RuntimeException("User not authenticated");
+        }
+
+        List<PortfolioSnapshot> snapshots = portfolioSnapshotRepository.findByUserOrderBySnapshotDateAsc(currentUser);
+        System.out.println("Snapshots found for user ID: " + currentUser.getId() + ": " + snapshots.size());
+
+        return snapshots;
+    }
 
 
 }
