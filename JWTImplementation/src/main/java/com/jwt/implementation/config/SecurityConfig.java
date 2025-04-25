@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/performance").permitAll()
                         .requestMatchers("/portfolio/summary").permitAll()
                         .requestMatchers("/trend").permitAll()
+                        .requestMatchers("/portfolio/asset-allocation").permitAll()
                         .requestMatchers("/export/pdf").permitAll()
                         .requestMatchers("/export/csv").permitAll()
                         .requestMatchers("/breakdown/category").permitAll()

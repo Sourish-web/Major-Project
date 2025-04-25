@@ -2,6 +2,7 @@ package com.jwt.implementation.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jwt.implementation.dto.AssetAllocationDTO;
 import com.jwt.implementation.dto.PortfolioSummaryDTO;
 import com.jwt.implementation.dto.PriceHistoryDTO;
 import com.jwt.implementation.entity.PortfolioAsset;
@@ -463,6 +464,46 @@ public class PortfolioService {
         System.out.println("Snapshots found for user ID: " + currentUser.getId() + ": " + snapshots.size());
 
         return snapshots;
+    }
+    
+    public List<AssetAllocationDTO> getAssetAllocation() {
+        System.out.println("Entering getAssetAllocation");
+        User currentUser = getCurrentUser();
+        System.out.println("Current User ID: " + (currentUser != null ? currentUser.getId() : "null"));
+
+        if (currentUser == null) {
+            System.out.println("Throwing RuntimeException: User not authenticated");
+            throw new RuntimeException("User not authenticated");
+        }
+
+        List<PortfolioAsset> assets = portfolioRepository.findByUser(currentUser);
+        System.out.println("Assets found for user ID: " + currentUser.getId() + ": " + assets.size());
+
+        // Group assets by assetType and sum (currentPrice * quantity)
+        Map<String, BigDecimal> totalValueByType = assets.stream()
+                .filter(asset -> asset.getAssetType() != null)
+                .collect(Collectors.groupingBy(
+                        PortfolioAsset::getAssetType,
+                        Collectors.reducing(
+                                BigDecimal.ZERO,
+                                asset -> {
+                                    BigDecimal price = asset.getCurrentPrice() != null ? asset.getCurrentPrice() : BigDecimal.ZERO;
+                                    BigDecimal quantity = asset.getQuantity() != null ? asset.getQuantity() : BigDecimal.ZERO;
+                                    return price.multiply(quantity);
+                                },
+                                BigDecimal::add
+                        )
+                ));
+
+        // Convert to List<AssetAllocationDTO>
+        List<AssetAllocationDTO> allocation = new ArrayList<>();
+        totalValueByType.forEach((assetType, totalValue) -> {
+            allocation.add(new AssetAllocationDTO(assetType, totalValue));
+            System.out.println("Asset Type: " + assetType + ", Total Value: " + totalValue);
+        });
+
+        System.out.println("Returning allocation: " + allocation);
+        return allocation;
     }
 
 
