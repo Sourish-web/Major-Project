@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers("/updateSubscription").permitAll()
                         .requestMatchers("/deleteSubscription/{id}").permitAll()
                         .requestMatchers("/updatePaymentStatus").permitAll()
+                        .requestMatchers("/api/chat").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
