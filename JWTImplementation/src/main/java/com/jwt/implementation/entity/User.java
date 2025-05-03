@@ -2,7 +2,10 @@ package com.jwt.implementation.entity;
 
 import jakarta.persistence.*;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -10,6 +13,11 @@ import java.util.List;
 
 @Entity
 public class User implements UserDetails {
+	
+	public enum Role {
+	    USER,
+	    ADMIN
+	}
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,11 +31,11 @@ public class User implements UserDetails {
 
     // Extra profile fields
     private String username;
-    private String phoneNumber; // redundant with "phone", but kept if you want both
-    private String profilePicture; // store URL or Base64
+    private String phoneNumber;
+    private String profilePicture;
     private String gender;
     
-    private LocalDate birthDate; // changed from Date to LocalDate
+    private LocalDate birthDate;
 
     @Column(length = 1000)
     private String bio;
@@ -44,12 +52,15 @@ public class User implements UserDetails {
     private String jobTitle;
     private String company;
     
-    private String skills; // comma-separated list
+    private String skills;
 
-    private boolean twoFactorEnabled; // for 2FA
-    private boolean isDeactivated; // for account deactivation
+    private boolean twoFactorEnabled;
+    private boolean isDeactivated;
 
-    private String panCard; // for document id
+    private String panCard;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     // Constructors
     public User() {
@@ -59,7 +70,7 @@ public class User implements UserDetails {
                 String phoneNumber, String profilePicture, String gender, LocalDate birthDate, String bio,
                 String address, String city, String state, String zipCode, String country,
                 String language, String theme, String jobTitle, String company, String skills,
-                boolean twoFactorEnabled, boolean isDeactivated, String panCard) {
+                boolean twoFactorEnabled, boolean isDeactivated, String panCard, Role role) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -84,10 +95,10 @@ public class User implements UserDetails {
         this.twoFactorEnabled = twoFactorEnabled;
         this.isDeactivated = isDeactivated;
         this.panCard = panCard;
+        this.role = role;
     }
 
     // Getters and Setters
-
     public Integer getId() {
         return id;
     }
@@ -106,11 +117,11 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // Spring Security uses email as username
+        return email;
     }
 
     public String getCustomUsername() {
-        return username; // real username field
+        return username;
     }
 
     public void setUsername(String username) {
@@ -286,29 +297,39 @@ public class User implements UserDetails {
         this.panCard = panCard;
     }
 
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
     // Spring Security methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(); // no roles yet
+        // Handle null role case (default to USER)
+        String authority = (role != null) ? "ROLE_" + role : "ROLE_USER";
+        return List.of(new SimpleGrantedAuthority(authority));
     }
 
     @Override
     public boolean isAccountNonExpired() {
-        return true; // update based on logic
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return !isDeactivated; // if deactivated, lock the account
+        return !isDeactivated;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; // update based on logic
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return !isDeactivated; // if deactivated, disable login
+        return !isDeactivated;
     }
 }

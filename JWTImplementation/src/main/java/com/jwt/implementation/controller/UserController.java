@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class UserController {
@@ -36,16 +37,11 @@ public class UserController {
 
     @PostMapping("/auth/login")
     @CrossOrigin(origins = "http://localhost:3000")
-    public ResponseEntity<LoginResponse> loginUser(@RequestBody LoginDto loginDto) {
-        User user = userService.loginUser(loginDto);
-        String jwtToken = jwtService.generateToken(new HashMap<>(), user);
-
-        LoginResponse loginResponse = new LoginResponse();
-        loginResponse.setToken(jwtToken);
-        loginResponse.setTokenExpireTime(jwtService.getExpirationTime());
-
-        return ResponseEntity.ok(loginResponse);
+    public ResponseEntity<Map<String, String>> login(@RequestBody LoginDto loginDto) {
+        String token = userService.loginUser(loginDto);
+        return ResponseEntity.ok(Map.of("token", token));
     }
+    
 
     @GetMapping("/getUsers")
     @CrossOrigin(origins = "http://localhost:3000")

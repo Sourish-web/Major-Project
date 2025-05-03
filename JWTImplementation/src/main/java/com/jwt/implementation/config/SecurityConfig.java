@@ -1,3 +1,4 @@
+
 package com.jwt.implementation.config;
 
 import com.jwt.implementation.service.JWTAuthenticationEntryPoint;
@@ -34,6 +35,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/user/**").hasAuthority("ROLE_USER")
                         .requestMatchers("/get/profile").permitAll()
                         .requestMatchers("/update/profile").permitAll()
                         .requestMatchers("/profile/password").permitAll()

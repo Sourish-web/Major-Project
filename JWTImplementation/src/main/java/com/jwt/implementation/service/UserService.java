@@ -5,12 +5,14 @@ import com.jwt.implementation.dto.PasswordChangeDTO;
 import com.jwt.implementation.dto.ProfileUpdateDTO;
 import com.jwt.implementation.dto.TwoFactorDTO;
 import com.jwt.implementation.entity.User;
+import com.jwt.implementation.entity.User.Role;
 import com.jwt.implementation.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,24 +34,60 @@ public class UserService {
 
     @Autowired
     private AuthenticationManager authenticationManager;
+    
+    @Autowired
+    private JWTService jwtService;
 
     public User signup(User userData) {
+        // Default new users to USER role if not specified
+        if (userData.getRole() == null) {
+            userData.setRole(Role.USER);  // Or: userData.setRole("USER");
+        }
         userData.setPassword(passwordEncoder.encode(userData.getPassword()));
         return userRepository.save(userData);
     }
-
-    public User loginUser(LoginDto loginDto) {
-        authenticationManager.authenticate(
+    public String loginUser(LoginDto loginDto) {
+        Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginDto.getEmail(), loginDto.getPassword()));
-
-        return userRepository.findByEmail(loginDto.getEmail())
-                .orElseThrow();
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        User user = userRepository.findByEmail(loginDto.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return jwtService.generateToken((UserDetails) user);
     }
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
+    
+    public User updateUser(Long id, User updatedUser) {
+        User user = userRepository.findById(id.intValue())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setEmail(updatedUser.getEmail());
+        user.setName(updatedUser.getName());
+        user.setRole(updatedUser.getRole());
+        user.setPhone(updatedUser.getPhone());
+        user.setGender(updatedUser.getGender());
+        user.setBirthDate(updatedUser.getBirthDate());
+        user.setBio(updatedUser.getBio());
+        user.setAddress(updatedUser.getAddress());
+        user.setCity(updatedUser.getCity());
+        user.setState(updatedUser.getState());
+        user.setZipCode(updatedUser.getZipCode());
+        user.setCountry(updatedUser.getCountry());
+        user.setLanguage(updatedUser.getLanguage());
+        user.setTheme(updatedUser.getTheme());
+        user.setJobTitle(updatedUser.getJobTitle());
+        user.setCompany(updatedUser.getCompany());
+        user.setSkills(updatedUser.getSkills());
+        user.setPanCard(updatedUser.getPanCard());
+        return userRepository.save(user);
+    }
+
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id.intValue());
+    }
+    
     
     public User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
