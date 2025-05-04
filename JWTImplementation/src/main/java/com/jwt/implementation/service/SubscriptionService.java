@@ -1,5 +1,6 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.dto.SubscriptionStatsDTO;
 import com.jwt.implementation.entity.Subscription;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.SubscriptionRepository;
@@ -115,4 +116,35 @@ public class SubscriptionService {
         }
         return "Others";
     }
+    
+    // Admin-specific methods
+    public List<Subscription> getAllSubscriptionsAdmin() {
+        return subscriptionRepository.findAll();
+    }
+
+    public boolean forceDeleteSubscriptionAdmin(int id) {
+        Subscription subscription = subscriptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Subscription not found."));
+        subscriptionRepository.delete(subscription);
+        return true;
+    }
+
+    public SubscriptionStatsDTO getSystemStats() {
+        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+        long totalSubscriptions = allSubscriptions.size();
+        long activeSubscriptions = allSubscriptions.stream()
+                .filter(s -> "PAID".equalsIgnoreCase(s.getPaymentStatus()))
+                .count();
+        BigDecimal totalMonthlyCost = allSubscriptions.stream()
+                .filter(s -> "Monthly".equalsIgnoreCase(s.getFrequency()))
+                .map(Subscription::getCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalYearlyCost = allSubscriptions.stream()
+                .filter(s -> "Yearly".equalsIgnoreCase(s.getFrequency()))
+                .map(Subscription::getCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new SubscriptionStatsDTO(totalSubscriptions, activeSubscriptions, totalMonthlyCost, totalYearlyCost);
+    }
+    
 }

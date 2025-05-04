@@ -1,8 +1,10 @@
 package com.jwt.implementation.controller;
 
+import com.jwt.implementation.dto.SubscriptionStatsDTO;
 import com.jwt.implementation.entity.Subscription;
 import com.jwt.implementation.service.SubscriptionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -61,5 +63,27 @@ public class SubscriptionController {
     @CrossOrigin(origins = "http://localhost:3000")
     public Subscription updatePaymentStatus(@RequestParam String razorpayOrderId, @RequestParam String status) {
         return subscriptionService.updatePaymentStatus(razorpayOrderId, status);
+    }
+    
+    // Admin-specific endpoints
+    @GetMapping("/admin/subscriptions")
+    @PreAuthorize("hasRole('ADMIN')")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public List<Subscription> getAllSubscriptionsAdmin() {
+        return subscriptionService.getAllSubscriptionsAdmin();
+    }
+
+    @GetMapping("/admin/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public SubscriptionStatsDTO getSystemStats() {
+        return subscriptionService.getSystemStats();
+    }
+
+    @DeleteMapping("/admin/subscriptions/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public Boolean forceDeleteSubscriptionAdmin(@PathVariable int id) {
+        return subscriptionService.forceDeleteSubscriptionAdmin(id);
     }
 }

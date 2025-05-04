@@ -5,19 +5,18 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-
-
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 @Entity
 public class User implements UserDetails {
-	
-	public enum Role {
-	    USER,
-	    ADMIN
-	}
+    
+    public enum Role {
+        USER,
+        ADMIN
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,6 +60,9 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PortfolioSnapshot> portfolioSnapshots = new ArrayList<>();
 
     // Constructors
     public User() {
@@ -305,10 +307,17 @@ public class User implements UserDetails {
         this.role = role;
     }
 
+    public List<PortfolioSnapshot> getPortfolioSnapshots() {
+        return portfolioSnapshots;
+    }
+
+    public void setPortfolioSnapshots(List<PortfolioSnapshot> portfolioSnapshots) {
+        this.portfolioSnapshots = portfolioSnapshots;
+    }
+
     // Spring Security methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Handle null role case (default to USER)
         String authority = (role != null) ? "ROLE_" + role : "ROLE_USER";
         return List.of(new SimpleGrantedAuthority(authority));
     }
