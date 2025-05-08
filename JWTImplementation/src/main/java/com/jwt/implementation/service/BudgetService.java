@@ -1,6 +1,7 @@
 package com.jwt.implementation.service;
 
 import com.jwt.implementation.entity.Budget;
+import com.jwt.implementation.entity.Period;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.BudgetRepository;
 import com.jwt.implementation.repository.UserRepository;
@@ -9,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,11 +24,6 @@ public class BudgetService {
     @Autowired
     private UserRepository userRepository;
 
-    /**
-     * Retrieves the currently authenticated user from the SecurityContext.
-     *
-     * @return User object of the authenticated user.
-     */
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
@@ -39,29 +37,44 @@ public class BudgetService {
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found in the database."));
     }
 
-    /**
-     * Adds a new budget for the currently authenticated user.
-     */
+    private void setBudgetEndDate(Budget budget) {
+        if (budget.getStartDate() == null) {
+            throw new RuntimeException("Start date is required.");
+        }
+        LocalDate startDate = budget.getStartDate();
+        switch (budget.getPeriod()) {
+            case WEEKLY:
+                budget.setEndDate(startDate.plusDays(6));
+                break;
+            case MONTHLY:
+                budget.setEndDate(startDate.with(TemporalAdjusters.lastDayOfMonth()));
+                break;
+            case YEARLY:
+                budget.setEndDate(startDate.plusYears(1).minusDays(1));
+                break;
+            default:
+                throw new RuntimeException("Invalid period.");
+        }
+    }
+
     public Budget addBudget(Budget budget) {
         User currentUser = getCurrentUser();
         if (budget.getSpent() == null) {
             budget.setSpent(java.math.BigDecimal.ZERO);
         }
+        if (budget.getCategory() == null) {
+            budget.setCategory(com.jwt.implementation.entity.Category.OTHER);
+        }
         budget.setUser(currentUser);
+        setBudgetEndDate(budget); // Set end_date based on period
         return budgetRepository.save(budget);
     }
 
-    /**
-     * Retrieves all budgets for the currently authenticated user.
-     */
     public List<Budget> getAllBudgets() {
         User currentUser = getCurrentUser();
         return budgetRepository.findByUser(currentUser);
     }
 
-    /**
-     * Updates a budget if it belongs to the currently authenticated user.
-     */
     public Budget updateBudget(Budget updatedBudget) {
         Budget existingBudget = budgetRepository.findById(updatedBudget.getId())
                 .orElseThrow(() -> new RuntimeException("Budget not found."));
@@ -75,15 +88,13 @@ public class BudgetService {
         existingBudget.setPeriod(updatedBudget.getPeriod());
         existingBudget.setSpent(updatedBudget.getSpent());
         existingBudget.setStartDate(updatedBudget.getStartDate());
-        existingBudget.setEndDate(updatedBudget.getEndDate());
-        existingBudget.setCategory(updatedBudget.getCategory()); // Added to update category
+        existingBudget.setCategory(updatedBudget.getCategory() != null ? 
+                                  updatedBudget.getCategory() : com.jwt.implementation.entity.Category.OTHER);
+        setBudgetEndDate(existingBudget); // Update end_date based on new period/start_date
 
         return budgetRepository.save(existingBudget);
     }
 
-    /**
-     * Deletes a budget if it belongs to the currently authenticated user.
-     */
     public Boolean deleteBudget(int id) {
         Budget budget = budgetRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Budget not found."));

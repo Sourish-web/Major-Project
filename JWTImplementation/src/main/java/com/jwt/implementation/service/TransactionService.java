@@ -1,8 +1,10 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.entity.Budget;
 import com.jwt.implementation.entity.Goal;
 import com.jwt.implementation.entity.Transaction;
 import com.jwt.implementation.entity.User;
+import com.jwt.implementation.repository.BudgetRepository;
 import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.TransactionRepository;
 import com.jwt.implementation.repository.UserRepository;
@@ -26,13 +28,11 @@ public class TransactionService {
     private UserRepository userRepository;
 
     @Autowired
-    private GoalRepository goalRepository; // Added for contributeToGoal
+    private GoalRepository goalRepository;
 
-    /**
-     * Retrieves the currently authenticated user from the SecurityContext.
-     *
-     * @return User object of the authenticated user.
-     */
+    @Autowired
+    private BudgetRepository budgetRepository; // Added to validate transaction dates
+
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
@@ -46,26 +46,35 @@ public class TransactionService {
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found in the database."));
     }
 
-    /**
-     * Adds a new transaction for the currently authenticated user.
-     */
+    private void validateTransactionDate(Transaction transaction) {
+        if (transaction.getTransactionDate() == null) {
+            transaction.setTransactionDate(LocalDate.now());
+        }
+        // If transaction is linked to a budget, ensure date is within budget period
+        if (transaction.getCategory() != null) {
+            List<Budget> budgets = budgetRepository.findByUser(getCurrentUser());
+            boolean validDate = budgets.stream()
+                .filter(b -> b.getCategory().equals(transaction.getCategory()))
+                .anyMatch(b -> !transaction.getTransactionDate().isBefore(b.getStartDate()) &&
+                              !transaction.getTransactionDate().isAfter(b.getEndDate()));
+            if (!validDate) {
+                throw new RuntimeException("Transaction date is not within any budget period for the category.");
+            }
+        }
+    }
+
     public Transaction addTransaction(Transaction transaction) {
         User currentUser = getCurrentUser();
         transaction.setUser(currentUser);
+        validateTransactionDate(transaction);
         return transactionRepository.save(transaction);
     }
 
-    /**
-     * Retrieves all transactions for the currently authenticated user.
-     */
     public List<Transaction> getAllTransaction() {
         User currentUser = getCurrentUser();
         return transactionRepository.findByUser(currentUser);
     }
 
-    /**
-     * Updates a transaction if it belongs to the currently authenticated user.
-     */
     public Transaction updateTransaction(Transaction updatedTransaction) {
         Transaction existingTransaction = transactionRepository.findById(updatedTransaction.getId())
                 .orElseThrow(() -> new RuntimeException("Transaction not found."));
@@ -76,16 +85,15 @@ public class TransactionService {
         }
 
         existingTransaction.setAmount(updatedTransaction.getAmount());
-        existingTransaction.setCategory(updatedTransaction.getCategory());
+        existingTransaction.setCategory(updatedTransaction.getCategory() != null ? 
+                                       updatedTransaction.getCategory() : com.jwt.implementation.entity.Category.OTHER);
         existingTransaction.setDescription(updatedTransaction.getDescription());
         existingTransaction.setTransactionDate(updatedTransaction.getTransactionDate());
+        validateTransactionDate(existingTransaction);
 
         return transactionRepository.save(existingTransaction);
     }
 
-    /**
-     * Deletes a transaction if it belongs to the currently authenticated user.
-     */
     public Boolean deleteTransaction(int id) {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Transaction not found."));
@@ -99,9 +107,6 @@ public class TransactionService {
         return true;
     }
 
-    /**
-     * Links a transaction to a goal and updates the goal's currentAmount.
-     */
     public Transaction contributeToGoal(Integer transactionId, Integer goalId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found."));

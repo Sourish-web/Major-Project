@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "budgets")
 public class Budget {
 
     @Id
@@ -13,28 +14,33 @@ public class Budget {
     private Integer id;
 
     private BigDecimal amount;
-    private String period; // "monthly" or "weekly"
+    @Enumerated(EnumType.STRING)
+    private Period period; // Now using Period enum
     private BigDecimal spent;
     private LocalDate startDate;
     private LocalDate endDate;
-    @Column
-    private String category; // New field for category (e.g., "Food", "Transport")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Category category; // Now using Category enum, non-nullable
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    public Budget() {}
+    public Budget() {
+        this.spent = BigDecimal.ZERO;
+        this.category = Category.OTHER; // Default category
+    }
 
-    public Budget(Integer id, BigDecimal amount, String period, BigDecimal spent, 
-                 LocalDate startDate, LocalDate endDate, String category, User user) {
+    public Budget(Integer id, BigDecimal amount, Period period, BigDecimal spent, 
+                 LocalDate startDate, LocalDate endDate, Category category, User user) {
         this.id = id;
         this.amount = amount;
         this.period = period;
-        this.spent = spent;
+        this.spent = spent != null ? spent : BigDecimal.ZERO;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.category = category;
+        this.category = category != null ? category : Category.OTHER;
         this.user = user;
     }
 
@@ -45,8 +51,8 @@ public class Budget {
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
 
-    public String getPeriod() { return period; }
-    public void setPeriod(String period) { this.period = period; }
+    public Period getPeriod() { return period; }
+    public void setPeriod(Period period) { this.period = period; }
 
     public BigDecimal getSpent() { return spent; }
     public void setSpent(BigDecimal spent) { this.spent = spent; }
@@ -57,8 +63,8 @@ public class Budget {
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public Category getCategory() { return category; }
+    public void setCategory(Category category) { this.category = category != null ? category : Category.OTHER; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

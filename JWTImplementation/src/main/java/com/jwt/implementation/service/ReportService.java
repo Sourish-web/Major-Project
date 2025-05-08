@@ -1,5 +1,6 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.entity.Category;
 import com.jwt.implementation.entity.Transaction;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.TransactionRepository;
@@ -31,17 +32,12 @@ public class ReportService {
     @Autowired
     private UserRepository userRepository;
 
-    /**
-     * Retrieves the currently authenticated user from the SecurityContext.
-     *
-     * @return User object of the authenticated user.
-     */
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         String email;
         if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
-            email = userDetails.getUsername(); // this should be the email
+            email = userDetails.getUsername();
         } else if (principal instanceof String str && str.equals("anonymousUser")) {
             throw new RuntimeException("User not authenticated.");
         } else {
@@ -69,7 +65,7 @@ public class ReportService {
         document.add(new Paragraph(" "));
 
         for (Transaction transaction : transactions) {
-            document.add(new Paragraph("Category: " + transaction.getCategory() +
+            document.add(new Paragraph("Category: " + transaction.getCategory().name() +
                     ", Amount: " + transaction.getAmount() +
                     ", Description: " + transaction.getDescription() +
                     ", Date: " + transaction.getTransactionDate()));
@@ -98,14 +94,14 @@ public class ReportService {
                     transaction.getDescription(),
                     transaction.getAmount().toString(),
                     transaction.getTransactionDate().toString(),
-                    transaction.getCategory()
+                    transaction.getCategory().name()
             });
         }
         csvWriter.close();
         return fileName;
     }
 
-    public Map<String, BigDecimal> breakdownByCategory() {
+    public Map<Category, BigDecimal> breakdownByCategory() {
         User currentUser = getCurrentUser();
         List<Transaction> transactions = transactionRepository.findByUser(currentUser);
         return transactions.stream().collect(

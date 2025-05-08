@@ -10,8 +10,9 @@ public class Report {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private String type;        // PDF or CSV
-    private String category;
+    private String type; // PDF or CSV
+    @Enumerated(EnumType.STRING)
+    private Category category; // Updated to use Category enum
     private LocalDate generatedDate;
     private String fileName;
 
@@ -19,10 +20,9 @@ public class Report {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Constructors
     public Report() {}
 
-    public Report(Integer id, String type, String category, LocalDate generatedDate, String fileName, User user) {
+    public Report(Integer id, String type, Category category, LocalDate generatedDate, String fileName, User user) {
         this.id = id;
         this.type = type;
         this.category = category;
@@ -31,15 +31,14 @@ public class Report {
         this.user = user;
     }
 
-    // Getters and Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public Category getCategory() { return category; }
+    public void setCategory(Category category) { this.category = category; }
 
     public LocalDate getGeneratedDate() { return generatedDate; }
     public void setGeneratedDate(LocalDate generatedDate) { this.generatedDate = generatedDate; }

@@ -1,5 +1,6 @@
 package com.jwt.implementation.controller;
 
+import com.jwt.implementation.entity.Category;
 import com.jwt.implementation.service.ReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -37,7 +38,7 @@ public class ReportController {
      */
     @GetMapping("/breakdown/category")
     @CrossOrigin(origins = "http://localhost:3000")
-    public Map<String, BigDecimal> getCategoryBreakdown() {
+    public Map<Category, BigDecimal> getCategoryBreakdown() {
         return reportService.breakdownByCategory();
     }
 

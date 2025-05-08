@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
+@Table(name = "transactions")
 public class Transaction {
 
     @Id
@@ -13,26 +15,36 @@ public class Transaction {
     private Integer id;
 
     private String description;
+
+    @NotNull(message = "Amount is required")
     private BigDecimal amount;
+
+    @NotNull(message = "Transaction date is required")
     private LocalDate transactionDate;
-    private String category;
+
+    @NotNull(message = "Category is required")
+    @Enumerated(EnumType.STRING)
+    private Category category;
+
     @Column
-    private Integer goalId; // New field to link to a goal
+    private Integer goalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Constructors
-    public Transaction() {}
+    public Transaction() {
+        this.transactionDate = LocalDate.now();
+        this.category = Category.OTHER;
+    }
 
     public Transaction(Integer id, String description, BigDecimal amount, LocalDate transactionDate, 
-                       String category, Integer goalId, User user) {
+                       Category category, Integer goalId, User user) {
         this.id = id;
         this.description = description;
         this.amount = amount;
-        this.transactionDate = transactionDate;
-        this.category = category;
+        this.transactionDate = transactionDate != null ? transactionDate : LocalDate.now();
+        this.category = category != null ? category : Category.OTHER;
         this.goalId = goalId;
         this.user = user;
     }
@@ -48,13 +60,17 @@ public class Transaction {
     public void setAmount(BigDecimal amount) { this.amount = amount; }
 
     public LocalDate getTransactionDate() { return transactionDate; }
-    public void setTransactionDate(LocalDate transactionDate) { this.transactionDate = transactionDate; }
+    public void setTransactionDate(LocalDate transactionDate) { 
+        this.transactionDate = transactionDate != null ? transactionDate : LocalDate.now(); 
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public Category getCategory() { return category; }
+    public void setCategory(Category category) { 
+        this.category = category != null ? category : Category.OTHER; 
+    }
 
     public Integer getGoalId() { return goalId; }
-    public void setGoalId(Integer goalId2) { this.goalId = goalId2; }
+    public void setGoalId(Integer goalId) { this.goalId = goalId; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
