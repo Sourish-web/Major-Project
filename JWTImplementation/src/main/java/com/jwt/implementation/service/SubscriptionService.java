@@ -5,9 +5,14 @@ import com.jwt.implementation.entity.Subscription;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.SubscriptionRepository;
 import com.jwt.implementation.repository.UserRepository;
+import com.razorpay.RazorpayClient;
+
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import com.razorpay.Order;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,6 +27,12 @@ public class SubscriptionService {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -38,7 +49,25 @@ public class SubscriptionService {
         User currentUser = getCurrentUser();
         sub.setCategory(autoCategorize(sub.getName()));
         sub.setUser(currentUser);
-        sub.setPaymentStatus("CREATED"); // default status
+        sub.setPaymentStatus("CREATED");
+
+        // Create Razorpay order if cost is greater than 0
+        if (sub.getCost().compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+                JSONObject orderRequest = new JSONObject();
+                orderRequest.put("amount", sub.getCost().multiply(new BigDecimal(100)).intValue()); // Convert to paise
+                orderRequest.put("currency", "INR");
+                orderRequest.put("receipt", "sub_" + System.currentTimeMillis());
+                orderRequest.put("payment_capture", 1);
+
+                Order order = razorpay.orders.create(orderRequest);
+                sub.setRazorpayOrderId(order.get("id"));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create Razorpay order: " + e.getMessage());
+            }
+        }
+
         return subscriptionRepository.save(sub);
     }
 

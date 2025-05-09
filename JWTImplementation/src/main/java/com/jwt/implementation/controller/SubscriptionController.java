@@ -8,7 +8,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class SubscriptionController {
@@ -18,8 +20,12 @@ public class SubscriptionController {
 
     @PostMapping("/addSubscription")
     @CrossOrigin(origins = "http://localhost:3000")
-    public Subscription addSubscription(@RequestBody Subscription sub) {
-        return subscriptionService.addSubscription(sub);
+    public Map<String, Object> addSubscription(@RequestBody Subscription sub) {
+        Subscription savedSubscription = subscriptionService.addSubscription(sub);
+        Map<String, Object> response = new HashMap<>();
+        response.put("subscription", savedSubscription);
+        response.put("razorpayOrderId", savedSubscription.getRazorpayOrderId());
+        return response;
     }
 
     @GetMapping("/getSubscriptions")
