@@ -1,5 +1,6 @@
 package com.jwt.implementation.controller;
 
+import com.jwt.implementation.dto.BudgetRemainingResponse;
 import com.jwt.implementation.entity.Budget;
 import com.jwt.implementation.service.BudgetService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -54,6 +56,19 @@ public class BudgetController {
         try {
             boolean deleted = budgetService.deleteBudget(id);
             return ResponseEntity.ok(deleted);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    // New endpoint to calculate remaining budget
+    @GetMapping("/budget/remaining/{id}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public ResponseEntity<?> getRemainingBudget(@PathVariable Integer id) {
+        try {
+            Budget budget = budgetService.calculateRemainingBudget(id);
+            BigDecimal remaining = budget.getAmount().subtract(budget.getSpent());
+            return ResponseEntity.ok(new BudgetRemainingResponse(budget, remaining));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }

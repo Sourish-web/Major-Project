@@ -86,6 +86,12 @@ public class GoalController {
     public GoalInsightsResponse getGoalInsights() {
         return goalService.getGoalInsights();
     }
+    
+    @GetMapping("/budgetCategories")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public List<String> getBudgetCategories() {
+        return goalService.getBudgetCategories();
+    }
 
 
     

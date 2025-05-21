@@ -5,6 +5,8 @@ public class GoalInvitationResponse {
     private String invitedUserName;
     private String invitedUserEmail;
     private boolean accepted;
+    private Integer goalId;
+    private String goalName;
 
     // Getters and setters
     public Integer getInvitationId() {
@@ -37,5 +39,21 @@ public class GoalInvitationResponse {
 
     public void setAccepted(boolean accepted) {
         this.accepted = accepted;
+    }
+
+    public Integer getGoalId() {
+        return goalId;
+    }
+
+    public void setGoalId(Integer goalId) {
+        this.goalId = goalId;
+    }
+
+    public String getGoalName() {
+        return goalName;
+    }
+
+    public void setGoalName(String goalName) {
+        this.goalName = goalName;
     }
 }

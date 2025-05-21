@@ -11,4 +11,5 @@ import com.jwt.implementation.entity.User;
 @Repository
 public interface GoalRepository extends JpaRepository<Goal, Integer> {
     List<Goal> findByUser(User user);
+    List<Goal> findByCollaboratorsContaining(User user);
 }

@@ -1,15 +1,18 @@
 package com.jwt.implementation.service;
 
 import com.jwt.implementation.entity.Budget;
+import com.jwt.implementation.entity.Category;
 import com.jwt.implementation.entity.Period;
+import com.jwt.implementation.entity.Transaction;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.BudgetRepository;
+import com.jwt.implementation.repository.TransactionRepository;
 import com.jwt.implementation.repository.UserRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
@@ -23,6 +26,9 @@ public class BudgetService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository; // Add TransactionRepository
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -60,13 +66,13 @@ public class BudgetService {
     public Budget addBudget(Budget budget) {
         User currentUser = getCurrentUser();
         if (budget.getSpent() == null) {
-            budget.setSpent(java.math.BigDecimal.ZERO);
+            budget.setSpent(BigDecimal.ZERO);
         }
         if (budget.getCategory() == null) {
-            budget.setCategory(com.jwt.implementation.entity.Category.OTHER);
+            budget.setCategory(Category.OTHER);
         }
         budget.setUser(currentUser);
-        setBudgetEndDate(budget); // Set end_date based on period
+        setBudgetEndDate(budget);
         return budgetRepository.save(budget);
     }
 
@@ -88,9 +94,9 @@ public class BudgetService {
         existingBudget.setPeriod(updatedBudget.getPeriod());
         existingBudget.setSpent(updatedBudget.getSpent());
         existingBudget.setStartDate(updatedBudget.getStartDate());
-        existingBudget.setCategory(updatedBudget.getCategory() != null ? 
-                                  updatedBudget.getCategory() : com.jwt.implementation.entity.Category.OTHER);
-        setBudgetEndDate(existingBudget); // Update end_date based on new period/start_date
+        existingBudget.setCategory(updatedBudget.getCategory() != null ?
+                updatedBudget.getCategory() : Category.OTHER);
+        setBudgetEndDate(existingBudget);
 
         return budgetRepository.save(existingBudget);
     }
@@ -106,5 +112,36 @@ public class BudgetService {
 
         budgetRepository.delete(budget);
         return true;
+    }
+
+    // New method to calculate remaining budget for a category
+    public Budget calculateRemainingBudget(Integer budgetId) {
+        Budget budget = budgetRepository.findById(budgetId)
+                .orElseThrow(() -> new RuntimeException("Budget not found."));
+
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(budget.getUser().getId(), currentUser.getId())) {
+            throw new RuntimeException("Unauthorized to access this budget.");
+        }
+
+        // Fetch transactions for the budget's category, user, and date range
+        List<Transaction> transactions = transactionRepository.findByUser(currentUser).stream()
+                .filter(t -> t.getCategory().equals(budget.getCategory()))
+                .filter(t -> !t.getTransactionDate().isBefore(budget.getStartDate()) &&
+                        !t.getTransactionDate().isAfter(budget.getEndDate()))
+                .toList();
+
+        // Calculate total spent from transactions
+        BigDecimal totalSpent = transactions.stream()
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Update budget's spent amount
+        budget.setSpent(totalSpent);
+
+        // Save updated budget
+        budgetRepository.save(budget);
+
+        return budget;
     }
 }

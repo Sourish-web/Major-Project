@@ -8,7 +8,6 @@ import com.jwt.implementation.repository.BudgetRepository;
 import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.TransactionRepository;
 import com.jwt.implementation.repository.UserRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -31,7 +30,10 @@ public class TransactionService {
     private GoalRepository goalRepository;
 
     @Autowired
-    private BudgetRepository budgetRepository; // Added to validate transaction dates
+    private BudgetRepository budgetRepository;
+
+    @Autowired
+    private BudgetService budgetService; // Add BudgetService to update budget
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -50,13 +52,12 @@ public class TransactionService {
         if (transaction.getTransactionDate() == null) {
             transaction.setTransactionDate(LocalDate.now());
         }
-        // If transaction is linked to a budget, ensure date is within budget period
         if (transaction.getCategory() != null) {
             List<Budget> budgets = budgetRepository.findByUser(getCurrentUser());
             boolean validDate = budgets.stream()
-                .filter(b -> b.getCategory().equals(transaction.getCategory()))
-                .anyMatch(b -> !transaction.getTransactionDate().isBefore(b.getStartDate()) &&
-                              !transaction.getTransactionDate().isAfter(b.getEndDate()));
+                    .filter(b -> b.getCategory().equals(transaction.getCategory()))
+                    .anyMatch(b -> !transaction.getTransactionDate().isBefore(b.getStartDate()) &&
+                            !transaction.getTransactionDate().isAfter(b.getEndDate()));
             if (!validDate) {
                 throw new RuntimeException("Transaction date is not within any budget period for the category.");
             }
@@ -67,7 +68,19 @@ public class TransactionService {
         User currentUser = getCurrentUser();
         transaction.setUser(currentUser);
         validateTransactionDate(transaction);
-        return transactionRepository.save(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // Update budget spent amount for the category
+        if (transaction.getCategory() != null) {
+            List<Budget> budgets = budgetRepository.findByUser(currentUser).stream()
+                    .filter(b -> b.getCategory().equals(transaction.getCategory()))
+                    .filter(b -> !transaction.getTransactionDate().isBefore(b.getStartDate()) &&
+                            !transaction.getTransactionDate().isAfter(b.getEndDate()))
+                    .toList();
+            budgets.forEach(budget -> budgetService.calculateRemainingBudget(budget.getId()));
+        }
+
+        return savedTransaction;
     }
 
     public List<Transaction> getAllTransaction() {
@@ -85,13 +98,25 @@ public class TransactionService {
         }
 
         existingTransaction.setAmount(updatedTransaction.getAmount());
-        existingTransaction.setCategory(updatedTransaction.getCategory() != null ? 
-                                       updatedTransaction.getCategory() : com.jwt.implementation.entity.Category.OTHER);
+        existingTransaction.setCategory(updatedTransaction.getCategory() != null ?
+                updatedTransaction.getCategory() : com.jwt.implementation.entity.Category.OTHER);
         existingTransaction.setDescription(updatedTransaction.getDescription());
         existingTransaction.setTransactionDate(updatedTransaction.getTransactionDate());
         validateTransactionDate(existingTransaction);
 
-        return transactionRepository.save(existingTransaction);
+        Transaction savedTransaction = transactionRepository.save(existingTransaction);
+
+        // Update budget spent amount for the category
+        if (existingTransaction.getCategory() != null) {
+            List<Budget> budgets = budgetRepository.findByUser(currentUser).stream()
+                    .filter(b -> b.getCategory().equals(existingTransaction.getCategory()))
+                    .filter(b -> !existingTransaction.getTransactionDate().isBefore(b.getStartDate()) &&
+                            !existingTransaction.getTransactionDate().isAfter(b.getEndDate()))
+                    .toList();
+            budgets.forEach(budget -> budgetService.calculateRemainingBudget(budget.getId()));
+        }
+
+        return savedTransaction;
     }
 
     public Boolean deleteTransaction(int id) {
@@ -101,6 +126,16 @@ public class TransactionService {
         User currentUser = getCurrentUser();
         if (!Objects.equals(transaction.getUser().getId(), currentUser.getId())) {
             throw new RuntimeException("Unauthorized to delete this transaction.");
+        }
+
+        // Update budget before deletion
+        if (transaction.getCategory() != null) {
+            List<Budget> budgets = budgetRepository.findByUser(currentUser).stream()
+                    .filter(b -> b.getCategory().equals(transaction.getCategory()))
+                    .filter(b -> !transaction.getTransactionDate().isBefore(b.getStartDate()) &&
+                            !transaction.getTransactionDate().isAfter(b.getEndDate()))
+                    .toList();
+            budgets.forEach(budget -> budgetService.calculateRemainingBudget(budget.getId()));
         }
 
         transactionRepository.delete(transaction);
@@ -115,7 +150,7 @@ public class TransactionService {
 
         User currentUser = getCurrentUser();
         if (!Objects.equals(transaction.getUser().getId(), currentUser.getId()) ||
-            !Objects.equals(goal.getUser().getId(), currentUser.getId())) {
+                !Objects.equals(goal.getUser().getId(), currentUser.getId())) {
             throw new RuntimeException("Unauthorized to link transaction to goal.");
         }
 
