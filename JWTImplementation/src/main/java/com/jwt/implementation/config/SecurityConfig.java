@@ -87,6 +87,9 @@ public class SecurityConfig {
                         .requestMatchers("/deleteSubscription/{id}").permitAll()
                         .requestMatchers("/updatePaymentStatus").permitAll()
                         .requestMatchers("/api/chat").permitAll()
+                        .requestMatchers("/api/dashboard/stats").permitAll()
+                        .requestMatchers("/api/dashboard/recent-activities").authenticated()
+                        .requestMatchers("/api/dashboard/spending-overview").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
