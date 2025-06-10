@@ -222,8 +222,8 @@ public class GoalService {
             throw new RuntimeException("Invitation already accepted.");
         }
 
-        invitation.setAccepted(false); // You can set this explicitly to false if needed.
-        goalInvitationRepository.save(invitation);
+        // Delete the invitation instead of updating it
+        goalInvitationRepository.delete(invitation);
     }
 
     // Get invitations for the current user

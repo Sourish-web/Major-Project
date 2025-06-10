@@ -14,9 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -65,108 +66,160 @@ public class ReportService {
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found in the database."));
     }
 
-    public String exportAsPDF() throws Exception {
-        User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
-        List<Budget> budgets = budgetRepository.findByUser(currentUser);
-
-        System.out.println(">> Exporting PDF for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
-        System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
-
-        Document document = new Document();
-        String fileName = "transactions_budgets_" + System.currentTimeMillis() + ".pdf";
-        PdfWriter.getInstance(document, new FileOutputStream(fileName));
-        document.open();
-        document.add(new Paragraph("Financial Report"));
-        document.add(new Paragraph("Generated on: " + LocalDate.now()));
-        document.add(new Paragraph(" "));
-
-        // Add Transactions
-        document.add(new Paragraph("Transactions:"));
-        for (Transaction transaction : transactions) {
-            document.add(new Paragraph("Category: " + transaction.getCategory().name() +
-                    ", Amount: " + transaction.getAmount() +
-                    ", Description: " + transaction.getDescription() +
-                    ", Date: " + transaction.getTransactionDate()));
+    // Helper method to filter transactions by quarter
+    private List<Transaction> filterTransactionsByQuarter(List<Transaction> transactions, String quarter) {
+        if (quarter == null || quarter.equals("All")) {
+            return transactions;
         }
-        document.add(new Paragraph(" "));
-
-        // Add Budgets
-        document.add(new Paragraph("Budgets:"));
-        for (Budget budget : budgets) {
-            BigDecimal remaining = budget.getAmount().subtract(budget.getSpent());
-            document.add(new Paragraph("Category: " + budget.getCategory().name() +
-                    ", Budget Amount: " + budget.getAmount() +
-                    ", Spent: " + budget.getSpent() +
-                    ", Remaining: " + remaining +
-                    ", Period: " + budget.getPeriod() +
-                    ", Start Date: " + budget.getStartDate() +
-                    ", End Date: " + budget.getEndDate()));
-        }
-
-        document.close();
-        return fileName;
+        return transactions.stream()
+                .filter(t -> {
+                    int month = t.getTransactionDate().getMonthValue();
+                    return switch (quarter) {
+                        case "Q1" -> month >= 1 && month <= 3;
+                        case "Q2" -> month >= 4 && month <= 6;
+                        case "Q3" -> month >= 7 && month <= 9;
+                        case "Q4" -> month >= 10 && month <= 12;
+                        default -> true;
+                    };
+                })
+                .collect(Collectors.toList());
     }
 
-    public String exportAsCSV() throws IOException {
-        User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
-        List<Budget> budgets = budgetRepository.findByUser(currentUser);
-
-        System.out.println(">> Exporting CSV for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
-        System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
-
-        String fileName = "transactions_budgets_" + System.currentTimeMillis() + ".csv";
-        FileWriter writer = new FileWriter(fileName);
-        CSVWriter csvWriter = new CSVWriter(writer);
-
-        // Transaction Headers
-        String[] transactionHeader = {"Type", "ID", "Description", "Amount", "Date", "Category"};
-        csvWriter.writeNext(transactionHeader);
-
-        // Write Transactions
-        for (Transaction transaction : transactions) {
-            csvWriter.writeNext(new String[]{
-                    "Transaction",
-                    String.valueOf(transaction.getId()),
-                    transaction.getDescription(),
-                    transaction.getAmount().toString(),
-                    transaction.getTransactionDate().toString(),
-                    transaction.getCategory().name()
-            });
+    // Helper method to filter budgets by quarter
+    private List<Budget> filterBudgetsByQuarter(List<Budget> budgets, String quarter) {
+        if (quarter == null || quarter.equals("All")) {
+            return budgets;
         }
-
-        // Budget Headers
-        String[] budgetHeader = {"Type", "ID", "Category", "Amount", "Spent", "Remaining", "Period", "Start Date", "End Date"};
-        csvWriter.writeNext(new String[]{});
-        csvWriter.writeNext(budgetHeader);
-
-        // Write Budgets
-        for (Budget budget : budgets) {
-            BigDecimal remaining = budget.getAmount().subtract(budget.getSpent());
-            csvWriter.writeNext(new String[]{
-                    "Budget",
-                    String.valueOf(budget.getId()),
-                    budget.getCategory().name(),
-                    budget.getAmount().toString(),
-                    budget.getSpent().toString(),
-                    remaining.toString(),
-                    budget.getPeriod().toString(),
-                    budget.getStartDate().toString(),
-                    budget.getEndDate().toString()
-            });
-        }
-
-        csvWriter.close();
-        return fileName;
+        return budgets.stream()
+                .filter(b -> {
+                    int month = b.getStartDate().getMonthValue();
+                    return switch (quarter) {
+                        case "Q1" -> month >= 1 && month <= 3;
+                        case "Q2" -> month >= 4 && month <= 6;
+                        case "Q3" -> month >= 7 && month <= 9;
+                        case "Q4" -> month >= 10 && month <= 12;
+                        default -> true;
+                    };
+                })
+                .collect(Collectors.toList());
     }
 
-    public Map<Category, ReportDataDTO.CategoryBreakdown> breakdownByCategory() {
-        User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
-        List<Budget> budgets = budgetRepository.findByUser(currentUser);
+    public byte[] exportAsPDF(String quarter) throws Exception {
+        try {
+            User currentUser = getCurrentUser();
+            List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
+            List<Budget> budgets = filterBudgetsByQuarter(budgetRepository.findByUser(currentUser), quarter);
 
-        System.out.println(">> Category breakdown for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
+            System.out.println(">> Exporting PDF for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
+            System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Document document = new Document();
+            PdfWriter writer = PdfWriter.getInstance(document, baos);
+            document.open();
+            document.add(new Paragraph("Financial Report"));
+            document.add(new Paragraph("Generated on: " + LocalDate.now()));
+            document.add(new Paragraph("Period: " + (quarter == null ? "All" : quarter)));
+            document.add(new Paragraph(" "));
+
+            // Add Transactions
+            document.add(new Paragraph("Transactions:"));
+            for (Transaction transaction : transactions) {
+                document.add(new Paragraph("Category: " + transaction.getCategory().name() +
+                        ", Amount: " + transaction.getAmount() +
+                        ", Description: " + (transaction.getDescription() != null ? transaction.getDescription() : "N/A") +
+                        ", Date: " + transaction.getTransactionDate()));
+            }
+            document.add(new Paragraph(" "));
+
+            // Add Budgets
+            document.add(new Paragraph("Budgets:"));
+            for (Budget budget : budgets) {
+                BigDecimal remaining = budget.getAmount().subtract(budget.getSpent());
+                document.add(new Paragraph("Category: " + budget.getCategory().name() +
+                        ", Budget Amount: " + budget.getAmount() +
+                        ", Spent: " + budget.getSpent() +
+                        ", Remaining: " + remaining +
+                        ", Period: " + budget.getPeriod() +
+                        ", Start Date: " + budget.getStartDate() +
+                        ", End Date: " + budget.getEndDate()));
+            }
+
+            document.close();
+            writer.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            System.err.println(">> Error generating PDF: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to generate PDF", e);
+        }
+    }
+
+    public byte[] exportAsCSV(String quarter) throws IOException {
+        try {
+            User currentUser = getCurrentUser();
+            List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
+            List<Budget> budgets = filterBudgetsByQuarter(budgetRepository.findByUser(currentUser), quarter);
+
+            System.out.println(">> Exporting CSV for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
+            System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(baos));
+
+            // Transaction Headers
+            String[] transactionHeader = {"Type", "ID", "Description", "Amount", "Date", "Category"};
+            csvWriter.writeNext(transactionHeader);
+
+            // Write Transactions
+            for (Transaction transaction : transactions) {
+                csvWriter.writeNext(new String[]{
+                        "Transaction",
+                        String.valueOf(transaction.getId()),
+                        transaction.getDescription() != null ? transaction.getDescription() : "N/A",
+                        transaction.getAmount().toString(),
+                        transaction.getTransactionDate().toString(),
+                        transaction.getCategory().name()
+                });
+            }
+
+            // Budget Headers
+            String[] budgetHeader = {"Type", "ID", "Category", "Amount", "Spent", "Remaining", "Period", "Start Date", "End Date"};
+            csvWriter.writeNext(new String[]{});
+            csvWriter.writeNext(budgetHeader);
+
+            // Write Budgets
+            for (Budget budget : budgets) {
+                BigDecimal remaining = budget.getAmount().subtract(budget.getSpent());
+                csvWriter.writeNext(new String[]{
+                        "Budget",
+                        String.valueOf(budget.getId()),
+                        budget.getCategory().name(),
+                        budget.getAmount().toString(),
+                        budget.getSpent().toString(),
+                        remaining.toString(),
+                        budget.getPeriod().toString(),
+                        budget.getStartDate().toString(),
+                        budget.getEndDate().toString()
+                });
+            }
+
+            csvWriter.flush();
+            csvWriter.close();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            System.err.println(">> Error generating CSV: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to generate CSV", e);
+        }
+    }
+
+    public Map<Category, ReportDataDTO.CategoryBreakdown> breakdownByCategory(String quarter) {
+        User currentUser = getCurrentUser();
+        List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
+        List<Budget> budgets = filterBudgetsByQuarter(budgetRepository.findByUser(currentUser), quarter);
+
+        System.out.println(">> Category breakdown for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
         System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
 
         Map<Category, BigDecimal> transactionTotals = transactions.stream().collect(
@@ -188,12 +241,12 @@ public class ReportService {
         ));
     }
 
-    public Map<Integer, ReportDataDTO.MonthlyBreakdown> breakdownByMonth() {
+    public Map<Integer, ReportDataDTO.MonthlyBreakdown> breakdownByMonth(String quarter) {
         User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
-        List<Budget> budgets = budgetRepository.findByUser(currentUser);
+        List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
+        List<Budget> budgets = filterBudgetsByQuarter(budgetRepository.findByUser(currentUser), quarter);
 
-        System.out.println(">> Monthly breakdown for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
+        System.out.println(">> Monthly breakdown for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
         System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
 
         Map<Integer, BigDecimal> transactionTotals = transactions.stream().collect(
@@ -217,12 +270,12 @@ public class ReportService {
         ));
     }
 
-    public ReportDataDTO getReportData() {
+    public ReportDataDTO getReportData(String quarter) {
         User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
-        List<Budget> budgets = budgetRepository.findByUser(currentUser);
+        List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
+        List<Budget> budgets = filterBudgetsByQuarter(budgetRepository.findByUser(currentUser), quarter);
 
-        System.out.println(">> Generating report data for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
+        System.out.println(">> Generating report data for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
         System.out.println(">> Found " + transactions.size() + " transactions and " + budgets.size() + " budgets.");
 
         Map<Category, BigDecimal> transactionTotals = transactions.stream().collect(
@@ -252,11 +305,11 @@ public class ReportService {
         return new ReportDataDTO(transactions, budgets, transactionTotals, budgetLimits, monthlyTotals, taxSummary);
     }
 
-    public BigDecimal taxSummary() {
+    public BigDecimal taxSummary(String quarter) {
         User currentUser = getCurrentUser();
-        List<Transaction> transactions = transactionRepository.findByUser(currentUser);
+        List<Transaction> transactions = filterTransactionsByQuarter(transactionRepository.findByUser(currentUser), quarter);
 
-        System.out.println(">> Calculating tax summary for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + ")");
+        System.out.println(">> Calculating tax summary for user: " + currentUser.getEmail() + " (ID: " + currentUser.getId() + "), Quarter: " + quarter);
         System.out.println(">> Found " + transactions.size() + " transactions.");
 
         return transactions.stream()

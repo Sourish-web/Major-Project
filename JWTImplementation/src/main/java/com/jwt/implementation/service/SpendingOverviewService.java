@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -38,21 +40,21 @@ public class SpendingOverviewService {
                 return date != null && !date.isBefore(start) && !date.isAfter(end);
             })
             .collect(Collectors.groupingBy(
-                t -> t.getTransactionDate().format(DateTimeFormatter.ofPattern("MMM"))
-                    .toLowerCase().replaceFirst("^.", Character.toString(Character.toUpperCase(t.getTransactionDate().format(DateTimeFormatter.ofPattern("MMM")).charAt(0)))),
-                Collectors.summingDouble(t -> t.getAmount().doubleValue())
+                t -> t.getTransactionDate().format(DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH)),
+                Collectors.summingDouble(t -> t.getAmount() != null ? t.getAmount().doubleValue() : 0.0)
             ));
 
         List<SpendingOverviewDTO> result = monthlySpending.entrySet().stream()
             .map(entry -> new SpendingOverviewDTO(entry.getKey(), entry.getValue()))
             .sorted((a, b) -> {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM");
-                return LocalDate.parse("01 " + a.getMonth(), formatter)
-                    .compareTo(LocalDate.parse("01 " + b.getMonth(), formatter));
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH);
+                Month monthA = Month.from(formatter.parse(a.getMonth()));
+                Month monthB = Month.from(formatter.parse(b.getMonth()));
+                return monthA.compareTo(monthB);
             })
             .toList();
 
         System.out.println("Spending overview result: " + result);
-        return result;
+        return result.isEmpty() ? List.of(new SpendingOverviewDTO("No Data", 0.0)) : result;
     }
 }
