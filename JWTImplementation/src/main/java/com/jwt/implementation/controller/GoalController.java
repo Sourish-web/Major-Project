@@ -7,11 +7,14 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import com.jwt.implementation.dto.GoalContributionResponse;
+import com.jwt.implementation.dto.GoalDTO;
 import com.jwt.implementation.dto.GoalInsightsResponse;
 import com.jwt.implementation.dto.GoalInvitationResponse;
 import com.jwt.implementation.entity.Goal;
 import com.jwt.implementation.entity.GoalInvitation;
 import com.jwt.implementation.service.GoalService;
+
 
 @RestController
 public class GoalController {
@@ -30,7 +33,15 @@ public class GoalController {
     public List<Goal> getGoals() {
         return goalService.getAllGoals();
     }
+    
 
+    @GetMapping("/getCollaboratedGoals")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public List<GoalDTO> getCollaboratedGoals() {
+        List<GoalDTO> goals = goalService.getCollaboratedGoals();
+        System.out.println("Controller returning " + goals.size() + " GoalDTOs");
+        return goals;
+    }
     @PostMapping("/updateGoal")
     @CrossOrigin(origins = "http://localhost:3000")
     public Goal updateGoal(@RequestBody Goal goal) {
@@ -91,6 +102,12 @@ public class GoalController {
     @CrossOrigin(origins = "http://localhost:3000")
     public List<String> getBudgetCategories() {
         return goalService.getBudgetCategories();
+    }
+    
+    @GetMapping("/goalContributions/{goalId}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public List<GoalContributionResponse> getGoalContributions(@PathVariable Integer goalId) {
+        return goalService.getGoalContributions(goalId);
     }
 
 

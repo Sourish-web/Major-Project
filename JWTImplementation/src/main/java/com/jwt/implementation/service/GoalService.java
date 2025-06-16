@@ -1,12 +1,16 @@
 package com.jwt.implementation.service;
 
+import com.jwt.implementation.dto.GoalContributionResponse;
+import com.jwt.implementation.dto.GoalDTO;
 import com.jwt.implementation.dto.GoalInsightsResponse;
 import com.jwt.implementation.dto.GoalInvitationResponse;
 import com.jwt.implementation.entity.Budget;
 import com.jwt.implementation.entity.Goal;
+import com.jwt.implementation.entity.GoalContribution;
 import com.jwt.implementation.entity.GoalInvitation;
 import com.jwt.implementation.entity.User;
 import com.jwt.implementation.repository.BudgetRepository;
+import com.jwt.implementation.repository.GoalContributionRepository;
 import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.GoalInvitationRepository;
 import com.jwt.implementation.repository.UserRepository;
@@ -18,10 +22,12 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +50,9 @@ public class GoalService {
 
     @Autowired
     private GoalInvitationRepository goalInvitationRepository;
+    
+    @Autowired
+    private GoalContributionRepository goalContributionRepository;
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -131,7 +140,6 @@ public class GoalService {
         return goalRepository.save(existingGoal);
     }
 
-    // Allocate amount to a goal (no budget dependency)
     public Goal allocateToGoal(Integer goalId, BigDecimal amount) {
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new RuntimeException("Goal not found."));
@@ -143,7 +151,15 @@ public class GoalService {
             throw new RuntimeException("Unauthorized to allocate to this goal.");
         }
 
-        // Update goal amount without budget checks
+        // Record the contribution
+        GoalContribution contribution = new GoalContribution();
+        contribution.setGoal(goal);
+        contribution.setUser(currentUser);
+        contribution.setAmount(amount);
+        contribution.setContributedAt(LocalDateTime.now());
+        goalContributionRepository.save(contribution);
+
+        // Update goal amount
         goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
 
         if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
@@ -166,10 +182,18 @@ public class GoalService {
             throw new RuntimeException("Unauthorized to delete this goal.");
         }
 
+        // Delete related invitations
+        List<GoalInvitation> invitations = goalInvitationRepository.findByGoal(goal);
+        goalInvitationRepository.deleteAll(invitations);
+
+        // Delete related contributions
+        List<GoalContribution> contributions = goalContributionRepository.findByGoal(goal);
+        goalContributionRepository.deleteAll(contributions);
+
+        // Delete the goal
         goalRepository.delete(goal);
         return true;
     }
-
     // Invite a user to collaborate on a goal
     public GoalInvitation inviteUserToGoal(Integer goalId, Integer invitedUserId) {
         Goal goal = goalRepository.findById(goalId)
@@ -205,12 +229,31 @@ public class GoalService {
             throw new RuntimeException("Invitation already accepted.");
         }
 
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(invitation.getInvitedUser().getId(), currentUser.getId())) {
+            throw new RuntimeException("Unauthorized to accept this invitation.");
+        }
+
         invitation.setAccepted(true);
-        goalInvitationRepository.save(invitation);
+        goalInvitationRepository.saveAndFlush(invitation); // Use saveAndFlush for immediate persistence
 
         Goal goal = invitation.getGoal();
-        goal.getCollaborators().add(invitation.getInvitedUser());
-        return goalRepository.save(goal);
+        if (goal.getCollaborators() == null) {
+            goal.setCollaborators(new HashSet<>());
+        }
+        boolean added = goal.getCollaborators().add(currentUser);
+        System.out.println("Adding user " + currentUser.getId() + " to goal " + goal.getId() + ": " + (added ? "Success" : "Already present"));
+
+        Goal savedGoal = goalRepository.saveAndFlush(goal); // Use saveAndFlush to ensure persistence
+        System.out.println("Saved goal " + savedGoal.getId() + " with collaborators: " + 
+            savedGoal.getCollaborators().stream().map(User::getId).collect(Collectors.toList()));
+        
+        // Verify collaborator in database
+        List<Goal> collaboratedGoals = goalRepository.findByCollaboratorsContaining(currentUser);
+        System.out.println("Collaborated goals for user " + currentUser.getId() + ": " + 
+            collaboratedGoals.stream().map(Goal::getId).collect(Collectors.toList()));
+        
+        return savedGoal;
     }
 
     // Reject a goal invitation
@@ -324,5 +367,63 @@ public class GoalService {
         response.setOldestGoalDate(oldestGoalDate);
 
         return response;
+    }
+    
+    public List<GoalContributionResponse> getGoalContributions(Integer goalId) {
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new RuntimeException("Goal not found."));
+
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(goal.getUser().getId(), currentUser.getId()) &&
+            !goal.getCollaborators().contains(currentUser)) {
+            throw new RuntimeException("Unauthorized to view contributions for this goal.");
+        }
+
+        List<GoalContribution> contributions = goalContributionRepository.findByGoal(goal);
+        List<GoalContributionResponse> responses = new ArrayList<>();
+        for (GoalContribution contribution : contributions) {
+            GoalContributionResponse response = new GoalContributionResponse();
+            response.setContributionId(contribution.getId());
+            response.setUserId(contribution.getUser().getId());
+            response.setUserName(contribution.getUser().getName());
+            response.setUserEmail(contribution.getUser().getEmail());
+            response.setAmount(contribution.getAmount());
+            response.setContributedAt(contribution.getContributedAt());
+            responses.add(response);
+        }
+        return responses;
+        
+    }
+    
+    public List<GoalDTO> getCollaboratedGoals() {
+        User currentUser = getCurrentUser();
+        System.out.println("Fetching collaborated goals for user ID: " + currentUser.getId() + 
+                          ", email: " + currentUser.getEmail());
+        List<Goal> collaboratedGoals = goalRepository.findByCollaboratorsContaining(currentUser);
+        
+        System.out.println("Found " + collaboratedGoals.size() + " collaborated goals: " + 
+            collaboratedGoals.stream()
+                .map(g -> "Goal ID=" + g.getId() + ", Name=" + g.getName() + 
+                         ", Collaborators=" + (g.getCollaborators() != null 
+                             ? g.getCollaborators().stream()
+                                 .map(u -> u.getId() + ":" + u.getEmail())
+                                 .collect(Collectors.toList()) 
+                             : "null"))
+                .collect(Collectors.toList()));
+        
+        List<GoalDTO> goalDTOs = collaboratedGoals.stream()
+                .filter(goal -> goal.getId() != null && goal.getId() > 0)
+                .map(goal -> {
+                    GoalDTO dto = new GoalDTO(goal);
+                    System.out.println("Mapped GoalDTO for goal ID: " + goal.getId());
+                    return dto;
+                })
+                .filter(dto -> dto.getId() != null) // Ensure DTOs are valid
+                .collect(Collectors.toList());
+        
+        System.out.println("Returning " + goalDTOs.size() + " GoalDTOs: " + 
+            goalDTOs.stream().map(GoalDTO::getId).collect(Collectors.toList()));
+        
+        return goalDTOs;
     }
 }

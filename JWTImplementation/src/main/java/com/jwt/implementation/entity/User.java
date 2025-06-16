@@ -6,6 +6,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -65,13 +66,14 @@ public class User implements UserDetails {
     private String panCard;
     
     @OneToOne(mappedBy = "user",fetch = FetchType.LAZY , cascade = CascadeType.ALL)
+
     private ForgotPassword forgotPassword;
 
     @Enumerated(EnumType.STRING)
     private Role role;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    
+
     private List<PortfolioSnapshot> portfolioSnapshots = new ArrayList<>();
 
     // Constructors
@@ -352,4 +354,5 @@ public class User implements UserDetails {
         return !isDeactivated;
     }
     
+
 }

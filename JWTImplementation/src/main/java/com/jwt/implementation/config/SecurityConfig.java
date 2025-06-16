@@ -94,6 +94,8 @@ public class SecurityConfig {
                         .requestMatchers("/forgotPassword/verifyOtp/**").permitAll()
                         .requestMatchers("/forgotPassword/changePassword/**").permitAll()
                         .requestMatchers("/forgotPassword/**").permitAll()
+                        .requestMatchers("/goalContributions/{goalId}").permitAll()
+                        .requestMatchers("/getCollaboratedGoals").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

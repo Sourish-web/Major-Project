@@ -8,6 +8,9 @@ import java.util.Set;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 @Entity
 @Table(name = "goals")
 public class Goal {
@@ -29,14 +32,16 @@ public class Goal {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+
     private User user;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
         name = "goal_collaborators",
         joinColumns = @JoinColumn(name = "goal_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
+ 
     private Set<User> collaborators = new HashSet<>();
 
     public Goal() {}
