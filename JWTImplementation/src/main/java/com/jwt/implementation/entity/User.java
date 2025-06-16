@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 public class User implements UserDetails {
@@ -23,6 +24,9 @@ public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+    
+    
+    
 
     // Basic info
     private String name;
@@ -59,6 +63,9 @@ public class User implements UserDetails {
     private boolean isDeactivated;
 
     private String panCard;
+    
+    @OneToOne(mappedBy = "user",fetch = FetchType.LAZY , cascade = CascadeType.ALL)
+    private ForgotPassword forgotPassword;
 
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -344,4 +351,5 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return !isDeactivated;
     }
+    
 }

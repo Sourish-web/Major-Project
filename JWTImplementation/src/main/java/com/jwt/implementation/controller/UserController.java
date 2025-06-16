@@ -1,7 +1,6 @@
 package com.jwt.implementation.controller;
 
 import com.jwt.implementation.dto.LoginDto;
-import com.jwt.implementation.dto.PasswordChangeDTO;
 import com.jwt.implementation.dto.ProfileUpdateDTO;
 import com.jwt.implementation.dto.TwoFactorDTO;
 import com.jwt.implementation.entity.User;
@@ -74,17 +73,6 @@ public class UserController {
         }
     }
 
-    @PutMapping("/profile/password")
-    @CrossOrigin(origins = "http://localhost:3000")
-    public ResponseEntity<String> changePassword(@Valid @RequestBody PasswordChangeDTO passwordChangeDTO) {
-        try {
-            userService.changePassword(passwordChangeDTO);
-            return ResponseEntity.ok("Password changed successfully");
-        } catch (RuntimeException e) {
-            System.out.println("Error in changePassword: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
 
     @PutMapping("/profile/2fa")
     @CrossOrigin(origins = "http://localhost:3000")

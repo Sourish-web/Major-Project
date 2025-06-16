@@ -90,6 +90,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/dashboard/stats").permitAll()
                         .requestMatchers("/api/dashboard/recent-activities").authenticated()
                         .requestMatchers("/api/dashboard/spending-overview").permitAll()
+                        .requestMatchers("/forgotPassword/verifyMail/**").permitAll()
+                        .requestMatchers("/forgotPassword/verifyOtp/**").permitAll()
+                        .requestMatchers("/forgotPassword/changePassword/**").permitAll()
+                        .requestMatchers("/forgotPassword/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -1,7 +1,6 @@
 package com.jwt.implementation.service;
 
 import com.jwt.implementation.dto.LoginDto;
-import com.jwt.implementation.dto.PasswordChangeDTO;
 import com.jwt.implementation.dto.ProfileUpdateDTO;
 import com.jwt.implementation.dto.TwoFactorDTO;
 import com.jwt.implementation.entity.User;
@@ -135,24 +134,6 @@ public class UserService {
         return updatedUser;
     }
 
-    
-    public void changePassword(PasswordChangeDTO passwordChangeDTO) {
-        User user = getCurrentUser();
-        System.out.println("Changing password for user ID: " + user.getId());
-
-        // Verify current password
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(user.getEmail(), passwordChangeDTO.getCurrentPassword()));
-        } catch (Exception e) {
-            throw new RuntimeException("Current password is incorrect");
-        }
-
-        // Update password
-        user.setPassword(passwordEncoder.encode(passwordChangeDTO.getNewPassword()));
-        userRepository.save(user);
-        System.out.println("Password changed for user ID: " + user.getId());
-    }
 
     
     public void updateTwoFactor(TwoFactorDTO twoFactorDTO) {
