@@ -96,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers("/forgotPassword/**").permitAll()
                         .requestMatchers("/goalContributions/{goalId}").permitAll()
                         .requestMatchers("/getCollaboratedGoals").permitAll()
+                        .requestMatchers("/createRazorpayOrder/{goalId}").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

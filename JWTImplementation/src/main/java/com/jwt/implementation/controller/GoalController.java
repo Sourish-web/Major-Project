@@ -109,6 +109,16 @@ public class GoalController {
     public List<GoalContributionResponse> getGoalContributions(@PathVariable Integer goalId) {
         return goalService.getGoalContributions(goalId);
     }
+    
+    @PostMapping("/createRazorpayOrder/{goalId}")
+    @CrossOrigin(origins = "http://localhost:3000")
+    public Map<String, String> createRazorpayOrder(@PathVariable Integer goalId, @RequestBody Map<String, BigDecimal> body) {
+        BigDecimal amount = body.get("amount");
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Invalid allocation amount.");
+        }
+        return goalService.createRazorpayOrder(goalId, amount);
+    }
 
 
     

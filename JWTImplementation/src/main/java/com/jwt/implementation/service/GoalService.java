@@ -14,8 +14,14 @@ import com.jwt.implementation.repository.GoalContributionRepository;
 import com.jwt.implementation.repository.GoalRepository;
 import com.jwt.implementation.repository.GoalInvitationRepository;
 import com.jwt.implementation.repository.UserRepository;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
 
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -53,6 +59,12 @@ public class GoalService {
     
     @Autowired
     private GoalContributionRepository goalContributionRepository;
+    
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -65,6 +77,83 @@ public class GoalService {
 
         return userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found in the database."));
+    }
+    
+    
+    // Create Razorpay Order
+    public Map<String, String> createRazorpayOrder(Integer goalId, BigDecimal amount) {
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new RuntimeException("Goal not found."));
+
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(goal.getUser().getId(), currentUser.getId()) &&
+            !goal.getCollaborators().contains(currentUser)) {
+            throw new RuntimeException("Unauthorized to allocate to this goal.");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Invalid allocation amount.");
+        }
+
+        try {
+            RazorpayClient razorpay = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", amount.multiply(new BigDecimal(100)).intValue()); // Convert to paise
+            orderRequest.put("currency", "INR");
+            orderRequest.put("receipt", "goal_" + goalId + "_" + System.currentTimeMillis());
+
+            Order order = razorpay.orders.create(orderRequest);
+            Map<String, String> response = new HashMap<>();
+            response.put("orderId", order.get("id"));
+            response.put("amount", amount.toString());
+            response.put("currency", "INR");
+            response.put("keyId", razorpayKeyId);
+            return response;
+        } catch (RazorpayException e) {
+            throw new RuntimeException("Failed to create Razorpay order: " + e.getMessage());
+        }
+    }
+
+    // Allocate to Goal with Payment Verification
+    public Goal allocateToGoal(Integer goalId, BigDecimal amount, String razorpayPaymentId, String razorpayOrderId, String razorpaySignature) {
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new RuntimeException("Goal not found."));
+
+        User currentUser = getCurrentUser();
+        if (!Objects.equals(goal.getUser().getId(), currentUser.getId()) &&
+            !goal.getCollaborators().contains(currentUser)) {
+            throw new RuntimeException("Unauthorized to allocate to this goal.");
+        }
+
+        // Verify Razorpay payment
+        try {
+            JSONObject attributes = new JSONObject();
+            attributes.put("razorpay_payment_id", razorpayPaymentId);
+            attributes.put("razorpay_order_id", razorpayOrderId);
+            attributes.put("razorpay_signature", razorpaySignature);
+            Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+        } catch (RazorpayException e) {
+            throw new RuntimeException("Payment verification failed: " + e.getMessage());
+        }
+
+        // Record the contribution
+        GoalContribution contribution = new GoalContribution();
+        contribution.setGoal(goal);
+        contribution.setUser(currentUser);
+        contribution.setAmount(amount);
+        contribution.setContributedAt(LocalDateTime.now());
+        goalContributionRepository.save(contribution);
+
+        // Update goal amount
+        goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
+
+        if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            goal.setStatus("Completed");
+        } else if (goal.getTargetDate().isBefore(LocalDate.now())) {
+            goal.setStatus("Missed");
+        }
+
+        return goalRepository.save(goal);
     }
 
     // Add a new goal
